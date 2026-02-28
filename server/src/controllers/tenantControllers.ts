@@ -1,7 +1,12 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { wktToGeoJSON } from "@terraformer/wkt";
 
-const Prisma = new PrismaClient();
+const prisma = new PrismaClient();
+
+type PropertyWithLocation = Prisma.PropertyGetPayload<{
+  include: { location: true };
+}>;
 
 export const getTenant = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -12,11 +17,9 @@ export const getTenant = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const tenant = await Prisma.tenant.findUnique({
+    const tenant = await prisma.tenant.findUnique({
       where: { cognitoId },
-      include: {
-        favorites: true,
-      },
+      include: { favorites: true },
     });
 
     if (!tenant) {
@@ -26,11 +29,12 @@ export const getTenant = async (req: Request, res: Response): Promise<void> => {
 
     res.json(tenant);
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: `Error retrieving tenant: ${error.message}` });
+    res.status(500).json({
+      message: `Error retrieving tenant: ${error.message}`,
+    });
   }
 };
+
 export const createTenant = async (
   req: Request,
   res: Response,
@@ -38,12 +42,7 @@ export const createTenant = async (
   try {
     const { cognitoId, name, email, phoneNumber } = req.body;
 
-    if (typeof cognitoId !== "string") {
-      res.status(400).json({ message: "Invalid cognitoId parameter." });
-      return;
-    }
-
-    const tenant = await Prisma.tenant.create({
+    const tenant = await prisma.tenant.create({
       data: {
         cognitoId,
         name,
@@ -54,11 +53,12 @@ export const createTenant = async (
 
     res.status(201).json(tenant);
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: `Error creating tenant: ${error.message}` });
+    res.status(500).json({
+      message: `Error creating tenant: ${error.message}`,
+    });
   }
 };
+
 export const updateTenant = async (
   req: Request,
   res: Response,
@@ -72,7 +72,7 @@ export const updateTenant = async (
       return;
     }
 
-    const updatetenant = await Prisma.tenant.update({
+    const updatedTenant = await prisma.tenant.update({
       where: { cognitoId },
       data: {
         name,
@@ -81,10 +81,153 @@ export const updateTenant = async (
       },
     });
 
-    res.json(updatetenant);
+    res.json(updatedTenant);
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: `Error updating tenant: ${error.message}` });
+    res.status(500).json({
+      message: `Error updating tenant: ${error.message}`,
+    });
+  }
+};
+
+export const getCurrentResidences = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { cognitoId } = req.params;
+
+    if (typeof cognitoId !== "string") {
+      res.status(400).json({ message: "Invalid cognitoId parameter." });
+      return;
+    }
+
+    const properties: PropertyWithLocation[] = await prisma.property.findMany({
+      where: { tenants: { some: { cognitoId } } },
+      include: { location: true },
+    });
+
+    const residencesWithFormattedLocation = await Promise.all(
+      properties.map(async (property) => {
+        const coordinates: { coordinates: string }[] = await prisma.$queryRaw`
+            SELECT ST_AsText(coordinates) as coordinates 
+            FROM "Location" 
+            WHERE id = ${property.location.id}
+          `;
+
+        const geoJSON: any = wktToGeoJSON(coordinates[0]?.coordinates || "");
+
+        const longitude = geoJSON?.coordinates?.[0] ?? null;
+        const latitude = geoJSON?.coordinates?.[1] ?? null;
+
+        return {
+          ...property,
+          location: {
+            ...property.location,
+            coordinates: {
+              longitude,
+              latitude,
+            },
+          },
+        };
+      }),
+    );
+
+    res.json(residencesWithFormattedLocation);
+  } catch (err: any) {
+    res.status(500).json({
+      message: `Error retrieving residences: ${err.message}`,
+    });
+  }
+};
+
+export const addFavoriteProperty = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { cognitoId } = req.params;
+    const { propertyId } = req.body;
+
+    if (typeof cognitoId !== "string") {
+      res.status(400).json({ message: "Invalid cognitoId parameter." });
+      return;
+    }
+
+    const propertyIdNumber = Number(propertyId);
+
+    if (isNaN(propertyIdNumber)) {
+      res.status(400).json({ message: "Invalid propertyId." });
+      return;
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { cognitoId },
+      include: { favorites: true },
+    });
+
+    if (!tenant) {
+      res.status(404).json({ message: "Tenant not found" });
+      return;
+    }
+
+    if (!tenant.favorites.some((fav) => fav.id === propertyIdNumber)) {
+      const updatedTenant = await prisma.tenant.update({
+        where: { cognitoId },
+        data: {
+          favorites: {
+            connect: { id: propertyIdNumber },
+          },
+        },
+        include: { favorites: true },
+      });
+
+      res.json(updatedTenant);
+    } else {
+      res.status(409).json({
+        message: "Property already added as favorite",
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({
+      message: `Error adding favorite property: ${error.message}`,
+    });
+  }
+};
+
+export const removeFavoriteProperty = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { cognitoId } = req.params;
+    const { propertyId } = req.body;
+
+    if (typeof cognitoId !== "string") {
+      res.status(400).json({ message: "Invalid cognitoId parameter." });
+      return;
+    }
+
+    const propertyIdNumber = Number(propertyId);
+
+    if (isNaN(propertyIdNumber)) {
+      res.status(400).json({ message: "Invalid propertyId." });
+      return;
+    }
+
+    const updatedTenant = await prisma.tenant.update({
+      where: { cognitoId },
+      data: {
+        favorites: {
+          disconnect: { id: propertyIdNumber },
+        },
+      },
+      include: { favorites: true },
+    });
+
+    res.json(updatedTenant);
+  } catch (err: any) {
+    res.status(500).json({
+      message: `Error removing favorite property: ${err.message}`,
+    });
   }
 };

@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Property, Location } from "@prisma/client";
+import { wktToGeoJSON } from "@terraformer/wkt";
 
-const Prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
 export const getManager = async (
   req: Request,
@@ -15,7 +16,7 @@ export const getManager = async (
       return;
     }
 
-    const manager = await Prisma.manager.findUnique({
+    const manager = await prisma.manager.findUnique({
       where: { cognitoId },
     });
 
@@ -31,6 +32,7 @@ export const getManager = async (
       .json({ message: `Error retrieving manager: ${error.message}` });
   }
 };
+
 export const createManager = async (
   req: Request,
   res: Response,
@@ -38,12 +40,7 @@ export const createManager = async (
   try {
     const { cognitoId, name, email, phoneNumber } = req.body;
 
-    if (typeof cognitoId !== "string") {
-      res.status(400).json({ message: "Invalid cognitoId parameter." });
-      return;
-    }
-
-    const manager = await Prisma.manager.create({
+    const manager = await prisma.manager.create({
       data: {
         cognitoId,
         name,
@@ -59,6 +56,7 @@ export const createManager = async (
       .json({ message: `Error creating manager: ${error.message}` });
   }
 };
+
 export const updateManager = async (
   req: Request,
   res: Response,
@@ -72,7 +70,7 @@ export const updateManager = async (
       return;
     }
 
-    const updateManager = await Prisma.manager.update({
+    const updateManager = await prisma.manager.update({
       where: { cognitoId },
       data: {
         name,
@@ -86,5 +84,66 @@ export const updateManager = async (
     res
       .status(500)
       .json({ message: `Error updating manager: ${error.message}` });
+  }
+};
+
+export const getManagerProperties = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { cognitoId } = req.params;
+
+    if (typeof cognitoId !== "string") {
+      res.status(400).json({ message: "Invalid cognitoId parameter." });
+      return;
+    }
+
+    const properties = await prisma.property.findMany({
+      where: { managerCognitoId: cognitoId },
+      include: {
+        location: true,
+      },
+    });
+
+    const propertiesWithFormattedLocation = await Promise.all(
+      properties.map(async (property) => {
+        const location = (property as Property & { location: Location | null })
+          .location;
+
+        if (!location) {
+          return property;
+        }
+
+        const coordinates: { coordinates: string }[] =
+          await prisma.$queryRaw`SELECT ST_asText(coordinates) as coordinates from "Location" where id = ${location.id}`;
+
+        const geoJSON: any = wktToGeoJSON(coordinates[0]?.coordinates || "");
+
+        if (!geoJSON || !geoJSON.coordinates) {
+          return { ...property, location: { ...location, coordinates: null } };
+        }
+
+        const longitude = geoJSON.coordinates[0];
+        const latitude = geoJSON.coordinates[1];
+
+        return {
+          ...property,
+          location: {
+            ...location,
+            coordinates: {
+              longitude,
+              latitude,
+            },
+          },
+        };
+      }),
+    );
+
+    res.json(propertiesWithFormattedLocation);
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ message: `Error retrieving manager properties: ${err.message}` });
   }
 };
