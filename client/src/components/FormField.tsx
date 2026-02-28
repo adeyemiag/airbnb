@@ -77,7 +77,7 @@ export const CustomFormField: React.FC<FormFieldProps> = ({
   const { control } = useFormContext();
 
   const renderFormControl = (
-    field: ControllerRenderProps<FieldValues, string>
+    field: ControllerRenderProps<FieldValues, string>,
   ) => {
     switch (type) {
       case "textarea":
@@ -121,7 +121,7 @@ export const CustomFormField: React.FC<FormFieldProps> = ({
               checked={field.value}
               onCheckedChange={field.onChange}
               id={name}
-              className={`text-customgreys-dirtyGrey ${inputClassName}`}
+              className={`${inputClassName}`}
             />
             <FormLabel htmlFor={name} className={labelClassName}>
               {label}

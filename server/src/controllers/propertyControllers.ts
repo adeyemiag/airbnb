@@ -14,7 +14,7 @@ const s3Client = new S3Client({
 
 export const getProperties = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const {
@@ -37,19 +37,19 @@ export const getProperties = async (
     if (favoriteIds) {
       const favoriteIdsArray = (favoriteIds as string).split(",").map(Number);
       whereConditions.push(
-        Prisma.sql`p.id IN (${Prisma.join(favoriteIdsArray)})`
+        Prisma.sql`p.id IN (${Prisma.join(favoriteIdsArray)})`,
       );
     }
 
     if (priceMin) {
       whereConditions.push(
-        Prisma.sql`p."pricePerMonth" >= ${Number(priceMin)}`
+        Prisma.sql`p."pricePerMonth" >= ${Number(priceMin)}`,
       );
     }
 
     if (priceMax) {
       whereConditions.push(
-        Prisma.sql`p."pricePerMonth" <= ${Number(priceMax)}`
+        Prisma.sql`p."pricePerMonth" <= ${Number(priceMax)}`,
       );
     }
 
@@ -63,19 +63,19 @@ export const getProperties = async (
 
     if (squareFeetMin) {
       whereConditions.push(
-        Prisma.sql`p."squareFeet" >= ${Number(squareFeetMin)}`
+        Prisma.sql`p."squareFeet" >= ${Number(squareFeetMin)}`,
       );
     }
 
     if (squareFeetMax) {
       whereConditions.push(
-        Prisma.sql`p."squareFeet" <= ${Number(squareFeetMax)}`
+        Prisma.sql`p."squareFeet" <= ${Number(squareFeetMax)}`,
       );
     }
 
     if (propertyType && propertyType !== "any") {
       whereConditions.push(
-        Prisma.sql`p."propertyType" = ${propertyType}::"PropertyType"`
+        Prisma.sql`p."propertyType" = ${propertyType}::"PropertyType"`,
       );
     }
 
@@ -95,7 +95,7 @@ export const getProperties = async (
               SELECT 1 FROM "Lease" l 
               WHERE l."propertyId" = p.id 
               AND l."startDate" <= ${date.toISOString()}
-            )`
+            )`,
           );
         }
       }
@@ -112,7 +112,7 @@ export const getProperties = async (
           l.coordinates::geometry,
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326),
           ${degrees}
-        )`
+        )`,
       );
     }
 
@@ -152,7 +152,7 @@ export const getProperties = async (
 
 export const getProperty = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -192,7 +192,7 @@ export const getProperty = async (
 
 export const createProperty = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const files = req.files as Express.Multer.File[];
@@ -206,23 +206,23 @@ export const createProperty = async (
       ...propertyData
     } = req.body;
 
-    const photoUrls = await Promise.all(
-      files.map(async (file) => {
-        const uploadParams = {
-          Bucket: process.env.S3_BUCKET_NAME!,
-          Key: `properties/${Date.now()}-${file.originalname}`,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-        };
+    // const photoUrls = await Promise.all(
+    //   files.map(async (file) => {
+    //     const uploadParams = {
+    //       Bucket: process.env.S3_BUCKET_NAME!,
+    //       Key: `properties/${Date.now()}-${file.originalname}`,
+    //       Body: file.buffer,
+    //       ContentType: file.mimetype,
+    //     };
 
-        const uploadResult = await new Upload({
-          client: s3Client,
-          params: uploadParams,
-        }).done();
+    //     const uploadResult = await new Upload({
+    //       client: s3Client,
+    //       params: uploadParams,
+    //     }).done();
 
-        return uploadResult.Location;
-      })
-    );
+    //     return uploadResult.Location;
+    //   })
+    // );
 
     const geocodingUrl = `https://nominatim.openstreetmap.org/search?${new URLSearchParams(
       {
@@ -232,7 +232,7 @@ export const createProperty = async (
         postalcode: postalCode,
         format: "json",
         limit: "1",
-      }
+      },
     ).toString()}`;
     const geocodingResponse = await axios.get(geocodingUrl, {
       headers: {
@@ -258,7 +258,7 @@ export const createProperty = async (
     const newProperty = await prisma.property.create({
       data: {
         ...propertyData,
-        photoUrls,
+        // photoUrls,
         locationId: location.id,
         managerCognitoId,
         amenities:
