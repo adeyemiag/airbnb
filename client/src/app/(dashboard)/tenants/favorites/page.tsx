@@ -32,26 +32,33 @@ const Favorites = () => {
   if (error) return <div>Error loading favorites</div>;
 
   return (
-    <div className="dashboard-container p-6">
+    <div className="dashboard-container ml-60 px-16 py-12">
       <Header
         title="Favorited Properties"
         subtitle="Browse and manage your saved property listings"
       />
-      <div className="flex justify-center">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {favoriteProperties?.map((property) => (
-            <Card
-              key={property.id}
-              property={property}
-              isFavorite={true}
-              onFavoriteToggle={() => {}}
-              showFavoriteButton={false}
-              propertyLink={`/tenants/residences/${property.id}`}
-            />
-          ))}
-        </div>
-        {(!favoriteProperties || favoriteProperties.length === 0) && (
-          <p>You don&lsquo;t have any favorited properties</p>
+
+      {/* No stretch + slightly right positioned */}
+      <div className="mt-8 ml-12">
+        {favoriteProperties && favoriteProperties.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {favoriteProperties.map((property) => (
+              <Card
+                key={property.id}
+                property={property}
+                isFavorite={true}
+                onFavoriteToggle={() => {}}
+                showFavoriteButton={false}
+                propertyLink={`/tenants/residences/${property.id}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-10">
+            <p className="text-gray-500 text-lg">
+              You don&apos;t have any favorited properties
+            </p>
+          </div>
         )}
       </div>
     </div>

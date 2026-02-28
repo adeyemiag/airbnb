@@ -31,7 +31,7 @@ const Residences = () => {
   if (error) return <div>Error loading current residences</div>;
 
   return (
-    <div className="dashboard-container p-6">
+    <div className="dashboard-container ml-72 px-16 py-12">
       <Header
         title="Current Residences"
         subtitle="View and manage your current living spaces"
