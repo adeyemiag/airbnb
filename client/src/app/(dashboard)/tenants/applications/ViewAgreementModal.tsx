@@ -70,7 +70,9 @@ const ViewAgreementModal = ({
 
           {/* Agreement details */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
-            <p className="font-semibold text-gray-700 mb-2">Agreement Details</p>
+            <p className="font-semibold text-gray-700 mb-2">
+              Agreement Details
+            </p>
             <div className="flex justify-between text-gray-600">
               <span>Property</span>
               <span className="font-medium">{property?.name ?? "—"}</span>
@@ -91,7 +93,7 @@ const ViewAgreementModal = ({
             </div>
             <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
               <span>Total Price</span>
-              <span>${totalPrice}</span>
+              <span>₦{totalPrice}</span>
             </div>
           </div>
 
@@ -108,8 +110,7 @@ const ViewAgreementModal = ({
           )}
 
           <p className="text-xs text-gray-400">
-            Agreement sent on{" "}
-            {new Date(agreement.sentAt).toLocaleDateString()}
+            Agreement sent on {new Date(agreement.sentAt).toLocaleDateString()}
             {agreement.signedAt &&
               ` · Signed on ${new Date(agreement.signedAt).toLocaleDateString()}`}
           </p>

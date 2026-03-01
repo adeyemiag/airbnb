@@ -11,7 +11,7 @@ const Card = ({
   propertyLink,
 }: CardProps) => {
   const [imgSrc, setImgSrc] = useState(
-    property.photoUrls?.[0] || "/placeholder.jpg"
+    property.photoUrls?.[0] || "/placeholder.jpg",
   );
 
   return (
@@ -80,7 +80,7 @@ const Card = ({
             </span>
           </div>
           <p className="text-lg font-bold mb-3">
-            ${property.pricePerMonth.toFixed(0)}{" "}
+            ₦{property.pricePerMonth.toLocaleString()}{" "}
             <span className="text-gray-600 text-base font-normal"> /month</span>
           </p>
         </div>

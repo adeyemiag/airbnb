@@ -11,10 +11,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  useGetAgreementsQuery,
+  useGetAuthUserQuery,
   useGetPaymentsQuery,
   useGetPropertyLeasesQuery,
   useGetPropertyQuery,
 } from "@/state/api";
+import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
 import { ArrowDownToLine, ArrowLeft, Check, Download } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,12 +28,21 @@ const PropertyTenants = () => {
   const { id } = useParams();
   const propertyId = Number(id);
 
+  const { data: authUser } = useGetAuthUserQuery();
   const { data: property, isLoading: propertyLoading } =
     useGetPropertyQuery(propertyId);
   const { data: leases, isLoading: leasesLoading } =
     useGetPropertyLeasesQuery(propertyId);
   const { data: payments, isLoading: paymentsLoading } =
     useGetPaymentsQuery(propertyId);
+  const { data: agreements } = useGetAgreementsQuery(
+    { userId: authUser?.cognitoInfo?.userId, userType: "manager" },
+    { skip: !authUser?.cognitoInfo?.userId },
+  );
+  // Map tenantCognitoId -> agreement for quick lookup
+  const agreementByTenant = new Map(
+    (agreements ?? []).map((a) => [a.tenantCognitoId, a]),
+  );
 
   if (propertyLoading || leasesLoading || paymentsLoading) return <Loading />;
 
@@ -125,7 +137,7 @@ const PropertyTenants = () => {
                           {new Date(lease.endDate).toLocaleDateString()}
                         </div>
                       </TableCell>
-                      <TableCell>${lease.rent.toFixed(2)}</TableCell>
+                      <TableCell>₦{lease.rent.toLocaleString()}</TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -143,13 +155,21 @@ const PropertyTenants = () => {
                       </TableCell>
                       <TableCell>{lease.tenant.phoneNumber}</TableCell>
                       <TableCell>
-                        <button
-                          className={`border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex 
-                      items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50`}
-                        >
-                          <ArrowDownToLine className="w-4 h-4 mr-1" />
-                          Download Agreement
-                        </button>
+                        {(() => {
+                          const agr = agreementByTenant.get(
+                            lease.tenantCognitoId,
+                          );
+                          return (
+                            <button
+                              className={`border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50 ${!agr ? "opacity-40 cursor-not-allowed" : ""}`}
+                              disabled={!agr}
+                              onClick={() => agr && downloadAgreementAsPDF(agr)}
+                            >
+                              <ArrowDownToLine className="w-4 h-4 mr-1" />
+                              Download Agreement
+                            </button>
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}

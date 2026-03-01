@@ -8,15 +8,15 @@ const ApplicationCard = ({
   children,
 }: ApplicationCardProps) => {
   const [imgSrc, setImgSrc] = useState(
-    application.property.photoUrls?.[0] || "/placeholder.jpg"
+    application.property.photoUrls?.[0] || "/placeholder.jpg",
   );
 
   const statusColor =
     application.status === "Approved"
       ? "bg-green-500"
       : application.status === "Denied"
-      ? "bg-red-500"
-      : "bg-yellow-500";
+        ? "bg-red-500"
+        : "bg-yellow-500";
 
   const contactPerson =
     userType === "manager" ? application.tenant : application.manager;
@@ -46,7 +46,7 @@ const ApplicationCard = ({
               </div>
             </div>
             <div className="text-xl font-semibold">
-              ${application.property.pricePerMonth}{" "}
+              ₦{application.property.pricePerMonth.toLocaleString()}{" "}
               <span className="text-sm font-normal">/ month</span>
             </div>
           </div>

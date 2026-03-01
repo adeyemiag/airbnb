@@ -71,7 +71,7 @@ const SendAgreementModal = ({
             </div>
             <div className="flex justify-between text-gray-700 font-bold border-t border-gray-200 pt-2">
               <span>Total Price</span>
-              <span>${totalPrice}</span>
+              <span>₦{totalPrice}</span>
             </div>
           </div>
 

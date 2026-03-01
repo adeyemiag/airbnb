@@ -26,7 +26,7 @@ const FiltersFull = () => {
   const filters = useAppSelector((state) => state.global.filters);
   const [localFilters, setLocalFilters] = useState(initialState.filters);
   const isFiltersFullOpen = useAppSelector(
-    (state) => state.global.isFiltersFullOpen
+    (state) => state.global.isFiltersFullOpen,
   );
 
   const updateURL = debounce((newFilters: FiltersState) => {
@@ -36,7 +36,7 @@ const FiltersFull = () => {
     Object.entries(cleanFilters).forEach(([key, value]) => {
       updatedSearchParams.set(
         key,
-        Array.isArray(value) ? value.join(",") : value.toString()
+        Array.isArray(value) ? value.join(",") : value.toString(),
       );
     });
 
@@ -67,10 +67,10 @@ const FiltersFull = () => {
     try {
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-          localFilters.location
+          localFilters.location,
         )}.json?access_token=${
           process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
-        }&fuzzyMatch=true`
+        }&fuzzyMatch=true`,
       );
       const data = await response.json();
       if (data.features && data.features.length > 0) {
@@ -125,7 +125,7 @@ const FiltersFull = () => {
                   "flex flex-col items-center justify-center p-4 border rounded-xl cursor-pointer",
                   localFilters.propertyType === type
                     ? "border-black"
-                    : "border-gray-200"
+                    : "border-gray-200",
                 )}
                 onClick={() =>
                   setLocalFilters((prev) => ({
@@ -160,8 +160,10 @@ const FiltersFull = () => {
             }
           />
           <div className="flex justify-between mt-2">
-            <span>${localFilters.priceRange[0] ?? 0}</span>
-            <span>${localFilters.priceRange[1] ?? 10000}</span>
+            <span>₦{(localFilters.priceRange[0] ?? 0).toLocaleString()}</span>
+            <span>
+              ₦{(localFilters.priceRange[1] ?? 10000).toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -244,7 +246,7 @@ const FiltersFull = () => {
                   "flex items-center space-x-2 p-2 border rounded-lg hover:cursor-pointer",
                   localFilters.amenities.includes(amenity as AmenityEnum)
                     ? "border-black"
-                    : "border-gray-200"
+                    : "border-gray-200",
                 )}
                 onClick={() => handleAmenityChange(amenity as AmenityEnum)}
               >

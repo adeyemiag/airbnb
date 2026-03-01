@@ -221,10 +221,10 @@ const ApplicationModal = ({
 
                 <div className="flex justify-between text-gray-600">
                   <span>
-                    ${breakdown.dailyRate.toFixed(2)}/night &times;{" "}
+                    ₦{breakdown.dailyRate.toFixed(2)}/night &times;{" "}
                     {breakdown.days} night{breakdown.days !== 1 ? "s" : ""}
                   </span>
-                  <span>${breakdown.subtotal.toFixed(2)}</span>
+                  <span>₦{breakdown.subtotal.toFixed(2)}</span>
                 </div>
 
                 {breakdown.discountPct > 0 && (
@@ -233,13 +233,13 @@ const ApplicationModal = ({
                       {breakdown.days >= 30 ? "Monthly" : "Weekly"} discount (
                       {breakdown.discountPct}%)
                     </span>
-                    <span>−${breakdown.discountAmount.toFixed(2)}</span>
+                    <span>−₦{breakdown.discountAmount.toFixed(2)}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2">
                   <span>Estimated Total</span>
-                  <span>${breakdown.total.toFixed(2)}</span>
+                  <span>₦{breakdown.total.toFixed(2)}</span>
                 </div>
 
                 {breakdown.discountPct > 0 && (

@@ -24,6 +24,16 @@ export interface Agreement {
     tenant?: Tenant;
   };
 }
+
+export interface PaymentRecord {
+  id: number;
+  amountDue: number;
+  amountPaid: number;
+  dueDate: string;
+  paymentDate: string;
+  paymentStatus: "Pending" | "Paid" | "PartiallyPaid" | "Overdue";
+  leaseId: number;
+}
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { FiltersState } from ".";
@@ -50,6 +60,7 @@ export const api = createApi({
     "Payments",
     "Applications",
     "Agreements",
+    "PaymentRecords",
   ],
   endpoints: (build) => ({
     getAuthUser: build.query<User, void>({
@@ -426,6 +437,30 @@ export const api = createApi({
         });
       },
     }),
+
+    // payment endpoints
+    verifyPayment: build.mutation<
+      { message: string; payment: PaymentRecord; reference: string },
+      { reference: string; applicationId: number }
+    >({
+      query: (body) => ({
+        url: "payments/verify",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["PaymentRecords", "Applications"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          success: "Payment successful! 🎉",
+          error: "Failed to verify payment.",
+        });
+      },
+    }),
+
+    getPaymentByApplication: build.query<PaymentRecord | null, number>({
+      query: (applicationId) => `payments/application/${applicationId}`,
+      providesTags: ["PaymentRecords"],
+    }),
   }),
 });
 
@@ -451,4 +486,6 @@ export const {
   useGetAgreementByApplicationQuery,
   useCreateAgreementMutation,
   useUpdateAgreementStatusMutation,
+  useVerifyPaymentMutation,
+  useGetPaymentByApplicationQuery,
 } = api;
