@@ -27,10 +27,16 @@ import {
   MapPin,
   User,
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React from "react";
 
 const PaymentMethod = () => {
+  const router = useRouter();
+
+  const editPaymentMethod = () => {
+    router.push("/billing/edit"); // update this route to your edit page
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 mt-10 md:mt-0 flex-1">
       <h2 className="text-2xl font-bold mb-4">Payment method</h2>
@@ -64,7 +70,10 @@ const PaymentMethod = () => {
 
           <hr className="my-4" />
           <div className="flex justify-end">
-            <button className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50">
+            <button
+              onClick={editPaymentMethod}
+              className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
+            >
               <Edit className="w-5 h-5 mr-2" />
               <span>Edit</span>
             </button>
@@ -82,6 +91,20 @@ const ResidenceCard = ({
   property: Property;
   currentLease: Lease;
 }) => {
+  const router = useRouter();
+
+  const goToManager = () => {
+    router.push(`/managers/${currentLease.managerId}`); // update route
+  };
+
+  const downloadAgreement = () => {
+    if (currentLease.agreementUrl) {
+      window.open(currentLease.agreementUrl, "_blank");
+    } else {
+      alert("Agreement URL not available");
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 flex-1 flex flex-col justify-between">
       {/* Header */}
@@ -137,11 +160,17 @@ const ResidenceCard = ({
       </div>
       {/* Buttons */}
       <div className="flex justify-end gap-2 w-full">
-        <button className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50">
+        <button
+          onClick={goToManager}
+          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
+        >
           <User className="w-5 h-5 mr-2" />
           Manager
         </button>
-        <button className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50">
+        <button
+          onClick={downloadAgreement}
+          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
+        >
           <Download className="w-5 h-5 mr-2" />
           Download Agreement
         </button>
@@ -151,6 +180,17 @@ const ResidenceCard = ({
 };
 
 const BillingHistory = ({ payments }: { payments: Payment[] }) => {
+  const downloadInvoice = (invoiceUrl?: string) => {
+    if (invoiceUrl) window.open(invoiceUrl, "_blank");
+    else alert("Invoice URL not available");
+  };
+
+  const downloadAllInvoices = () => {
+    payments.forEach((payment) => {
+      if (payment.invoiceUrl) window.open(payment.invoiceUrl, "_blank");
+    });
+  };
+
   return (
     <div className="mt-8 bg-white rounded-xl shadow-md overflow-hidden p-6">
       {/* Header */}
@@ -162,7 +202,10 @@ const BillingHistory = ({ payments }: { payments: Payment[] }) => {
           </p>
         </div>
         <div>
-          <button className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50">
+          <button
+            onClick={downloadAllInvoices}
+            className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
+          >
             <Download className="w-5 h-5 mr-2" />
             <span>Download All</span>
           </button>
@@ -212,7 +255,10 @@ const BillingHistory = ({ payments }: { payments: Payment[] }) => {
                 </TableCell>
                 <TableCell>${payment.amountPaid.toFixed(2)}</TableCell>
                 <TableCell>
-                  <button className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50">
+                  <button
+                    onClick={() => downloadInvoice(payment.invoiceUrl)}
+                    className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50"
+                  >
                     <ArrowDownToLineIcon className="w-4 h-4 mr-1" />
                     Download
                   </button>

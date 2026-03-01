@@ -27,12 +27,35 @@ export const propertySchema = z.object({
 
 export type PropertyFormData = z.infer<typeof propertySchema>;
 
-export const applicationSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-  message: z.string().optional(),
-});
+export const applicationSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email address"),
+    phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
+    message: z.string().optional(),
+    startDate: z.string().min(1, "Check-in date is required"),
+    endDate: z.string().min(1, "Check-out date is required"),
+    totalPrice: z.number().min(0),
+  })
+  .refine(
+    (data) => {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      return end > start;
+    },
+    { message: "Check-out must be after check-in", path: ["endDate"] },
+  )
+  .refine(
+    (data) => {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      const days = Math.ceil(
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return days >= 2;
+    },
+    { message: "Stay must be at least 2 days", path: ["endDate"] },
+  );
 
 export type ApplicationFormData = z.infer<typeof applicationSchema>;
 

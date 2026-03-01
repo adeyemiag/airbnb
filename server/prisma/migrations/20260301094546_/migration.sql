@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Application" ALTER COLUMN "startDate" DROP DEFAULT,
+ALTER COLUMN "endDate" DROP DEFAULT,
+ALTER COLUMN "totalPrice" DROP DEFAULT;

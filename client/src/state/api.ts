@@ -7,6 +7,23 @@ import {
   Property,
   Tenant,
 } from "@/types/prismaTypes";
+
+// Agreement type (not yet in prismaTypes, defined here)
+export interface Agreement {
+  id: number;
+  applicationId: number;
+  managerCognitoId: string;
+  tenantCognitoId: string;
+  propertyId: number;
+  customTerms?: string | null;
+  status: "Pending" | "Signed" | "Rejected";
+  sentAt: string;
+  signedAt?: string | null;
+  application?: Application & {
+    property?: Property & { location?: any; manager?: Manager };
+    tenant?: Tenant;
+  };
+}
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { FiltersState } from ".";
@@ -32,6 +49,7 @@ export const api = createApi({
     "Leases",
     "Payments",
     "Applications",
+    "Agreements",
   ],
   endpoints: (build) => ({
     getAuthUser: build.query<User, void>({
@@ -348,6 +366,66 @@ export const api = createApi({
         });
       },
     }),
+
+    // agreement endpoints
+    getAgreements: build.query<
+      Agreement[],
+      { userId?: string; userType?: string }
+    >({
+      query: (params) => {
+        const queryParams = new URLSearchParams();
+        if (params.userId) queryParams.append("userId", params.userId);
+        if (params.userType) queryParams.append("userType", params.userType);
+        return `agreements?${queryParams.toString()}`;
+      },
+      providesTags: ["Agreements"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          error: "Failed to fetch agreements.",
+        });
+      },
+    }),
+
+    getAgreementByApplication: build.query<Agreement, number>({
+      query: (applicationId) => `agreements/application/${applicationId}`,
+      providesTags: ["Agreements"],
+    }),
+
+    createAgreement: build.mutation<
+      Agreement,
+      { applicationId: number; customTerms?: string }
+    >({
+      query: (body) => ({
+        url: "agreements",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Agreements"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          success: "Agreement sent to tenant!",
+          error: "Failed to send agreement.",
+        });
+      },
+    }),
+
+    updateAgreementStatus: build.mutation<
+      Agreement,
+      { id: number; status: "Signed" | "Rejected" }
+    >({
+      query: ({ id, status }) => ({
+        url: `agreements/${id}/status`,
+        method: "PUT",
+        body: { status },
+      }),
+      invalidatesTags: ["Agreements", "Applications"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          success: "Agreement updated!",
+          error: "Failed to update agreement.",
+        });
+      },
+    }),
   }),
 });
 
@@ -369,4 +447,8 @@ export const {
   useGetApplicationsQuery,
   useUpdateApplicationStatusMutation,
   useCreateApplicationMutation,
+  useGetAgreementsQuery,
+  useGetAgreementByApplicationQuery,
+  useCreateAgreementMutation,
+  useUpdateAgreementStatusMutation,
 } = api;

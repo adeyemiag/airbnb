@@ -65,6 +65,12 @@ enum PaymentStatus {
   Overdue
 }
 
+enum AgreementStatus {
+  Pending
+  Signed
+  Rejected
+}
+
 model Property {
   id                Int          @id @default(autoincrement())
   name              String
@@ -141,10 +147,14 @@ model Application {
   phoneNumber     String
   message         String?
   leaseId         Int?              @unique
+  startDate       DateTime
+  endDate         DateTime
+  totalPrice      Float
 
   property Property @relation(fields: [propertyId], references: [id])
   tenant   Tenant   @relation(fields: [tenantCognitoId], references: [cognitoId])
   lease    Lease?   @relation(fields: [leaseId], references: [id])
+  agreement Agreement?
 }
 
 model Lease {
@@ -160,6 +170,20 @@ model Lease {
   tenant      Tenant       @relation(fields: [tenantCognitoId], references: [cognitoId])
   application Application?
   payments    Payment[]
+}
+
+model Agreement {
+  id              Int             @id @default(autoincrement())
+  applicationId   Int             @unique
+  managerCognitoId String
+  tenantCognitoId String
+  propertyId      Int
+  customTerms     String?
+  status          AgreementStatus @default(Pending)
+  sentAt          DateTime        @default(now())
+  signedAt        DateTime?
+
+  application Application @relation(fields: [applicationId], references: [id])
 }
 
 model Payment {
