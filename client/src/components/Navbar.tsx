@@ -3,9 +3,14 @@
 import { NAVBAR_HEIGHT } from "@/lib/constants";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "./ui/button";
-import { useGetAuthUserQuery } from "@/state/api";
+import {
+  useGetAuthUserQuery,
+  useGetNotificationsQuery,
+  useMarkAllReadMutation,
+  useMarkOneReadMutation,
+} from "@/state/api";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "aws-amplify/auth";
 import { Bell, MessageCircle, Plus, Search } from "lucide-react";
@@ -23,9 +28,31 @@ const Navbar = () => {
   const { data: authUser } = useGetAuthUserQuery();
   const router = useRouter();
   const pathname = usePathname();
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const isDashboardPage =
     pathname.includes("/managers") || pathname.includes("/tenants");
+
+  const { data: notifications } = useGetNotificationsQuery(
+    {
+      userId: authUser?.cognitoInfo?.userId,
+      userType: authUser?.userRole,
+    },
+    { skip: !authUser?.cognitoInfo?.userId, pollingInterval: 15000 },
+  );
+
+  const [markAllRead] = useMarkAllReadMutation();
+  const [markOneRead] = useMarkOneReadMutation();
+
+  const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
+
+  const handleMarkAllRead = () => {
+    if (!authUser?.cognitoInfo?.userId) return;
+    markAllRead({
+      userId: authUser.cognitoInfo.userId,
+      userType: authUser.userRole ?? "",
+    });
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -93,11 +120,13 @@ const Navbar = () => {
             </Button>
           )}
         </div>
+
         {!isDashboardPage && (
           <p className="text-primary-200 hidden md:block">
             Discover your perfect rental apartment with our advanced search
           </p>
         )}
+
         <div className="flex items-center gap-5">
           {authUser ? (
             <>
@@ -105,9 +134,76 @@ const Navbar = () => {
                 <MessageCircle className="w-6 h-6 cursor-pointer text-primary-200 hover:text-primary-400" />
                 <span className="absolute top-0 right-0 w-2 h-2 bg-secondary-700 rounded-full"></span>
               </div>
+
+              {/* Bell with dropdown */}
               <div className="relative hidden md:block">
-                <Bell className="w-6 h-6 cursor-pointer text-primary-200 hover:text-primary-400" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-secondary-700 rounded-full"></span>
+                <button
+                  className="relative focus:outline-none"
+                  onClick={() => setNotifOpen((v) => !v)}
+                >
+                  <Bell className="w-6 h-6 cursor-pointer text-primary-200 hover:text-primary-400" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl z-50 overflow-hidden border border-gray-100">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                      <span className="font-semibold text-gray-800 text-sm">
+                        Notifications
+                      </span>
+                      {unreadCount > 0 && (
+                        <button
+                          className="text-xs text-blue-600 hover:underline"
+                          onClick={handleMarkAllRead}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                      {!notifications || notifications.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-8">
+                          No notifications yet
+                        </p>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? "bg-blue-50" : ""}`}
+                            onClick={() => {
+                              if (!n.isRead) markOneRead(n.id);
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!n.isRead ? "bg-blue-500" : "bg-gray-300"}`}
+                              />
+                              <div>
+                                <p className="text-sm font-semibold text-gray-800">
+                                  {n.title}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                                  {n.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(n.createdAt).toLocaleDateString()} ·{" "}
+                                  {new Date(n.createdAt).toLocaleTimeString(
+                                    [],
+                                    { hour: "2-digit", minute: "2-digit" },
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <DropdownMenu>

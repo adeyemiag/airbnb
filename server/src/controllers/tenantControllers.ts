@@ -81,11 +81,26 @@ export const getCurrentResidences = async (
 ): Promise<void> => {
   try {
     const cognitoId = req.params.cognitoId as string;
-    const properties = await prisma.property.findMany({
-      where: { tenants: { some: { cognitoId } } },
-      include: {
-        location: true,
+
+    // Only return properties where tenant has a paid payment
+    const paidApplications = await prisma.application.findMany({
+      where: {
+        tenantCognitoId: cognitoId,
+        status: "Approved",
+        lease: {
+          payments: {
+            some: { paymentStatus: "Paid" },
+          },
+        },
       },
+      select: { propertyId: true },
+    });
+
+    const paidPropertyIds = paidApplications.map((a) => a.propertyId);
+
+    const properties = await prisma.property.findMany({
+      where: { id: { in: paidPropertyIds } },
+      include: { location: true },
     });
 
     const residencesWithFormattedLocation = await Promise.all(

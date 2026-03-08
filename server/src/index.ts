@@ -13,6 +13,7 @@ import leaseRoutes from "./routes/leaseRoutes";
 import applicationRoutes from "./routes/applicationRoutes";
 import agreementRoutes from "./routes/agreementRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -33,6 +34,7 @@ app.get("/", (req, res) => {
 app.use("/applications", applicationRoutes);
 app.use("/agreements", agreementRoutes);
 app.use("/payments", paymentRoutes);
+app.use("/notifications", notificationRoutes);
 app.use("/properties", propertyRoutes);
 app.use("/leases", leaseRoutes);
 app.use("/tenants", authMiddleware(["tenant"]), tenantRoutes);

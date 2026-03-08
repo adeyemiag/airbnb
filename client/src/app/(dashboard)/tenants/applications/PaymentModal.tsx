@@ -8,8 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useVerifyPaymentMutation } from "@/state/api";
-import Script from "next/script";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -40,14 +39,36 @@ const PaymentModal = ({
 }: PaymentModalProps) => {
   const [verifyPayment, { isLoading }] = useVerifyPaymentMutation();
   const [scriptReady, setScriptReady] = useState(false);
+  const attempts = useRef(0);
+
+  useEffect(() => {
+    const check = () => {
+      if (window.PaystackPop) {
+        setScriptReady(true);
+        return;
+      }
+      attempts.current += 1;
+      if (attempts.current > 20) return;
+      setTimeout(check, 500);
+    };
+
+    if (!document.getElementById("paystack-js")) {
+      const script = document.createElement("script");
+      script.id = "paystack-js";
+      script.src = "https://js.paystack.co/v1/inline.js";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+
+    check();
+  }, []);
 
   const handlePayNow = () => {
     if (!window.PaystackPop) {
-      alert("Payment system is still loading, please try again in a moment.");
+      alert("Payment system not ready. Please wait a moment and try again.");
       return;
     }
 
-    // Paystack requires amount in kobo (naira x 100)
     const amountInKobo = Math.round(totalPrice * 100);
 
     const handler = window.PaystackPop.setup({
@@ -75,9 +96,11 @@ const PaymentModal = ({
           },
         ],
       },
-      callback: async (response: { reference: string }) => {
-        await verifyPayment({ reference: response.reference, applicationId });
-        onClose();
+      // FIX: Paystack does not accept async callbacks — use .then() instead
+      callback: (response: { reference: string }) => {
+        verifyPayment({ reference: response.reference, applicationId })
+          .then(() => onClose())
+          .catch(() => onClose());
       },
       onClose: () => {},
     });
@@ -86,73 +109,62 @@ const PaymentModal = ({
   };
 
   return (
-    <>
-      {/* Load Paystack script via Next.js Script component */}
-      <Script
-        src="https://js.paystack.co/v1/inline.js"
-        strategy="afterInteractive"
-        onLoad={() => setScriptReady(true)}
-      />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-white max-w-md">
+        <DialogHeader>
+          <DialogTitle>Complete Your Payment</DialogTitle>
+        </DialogHeader>
 
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Complete Your Payment</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 text-sm">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
-              <p className="font-semibold text-gray-700 mb-2">
-                Payment Summary
-              </p>
-              <div className="flex justify-between text-gray-600">
-                <span>Property</span>
-                <span className="font-medium">{propertyName}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Tenant</span>
-                <span className="font-medium">{tenantName}</span>
-              </div>
-              <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2 text-base">
-                <span>Total Amount</span>
-                <span>₦{totalPrice.toLocaleString()}</span>
-              </div>
+        <div className="space-y-4 text-sm">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <p className="font-semibold text-gray-700 mb-2">Payment Summary</p>
+            <div className="flex justify-between text-gray-600">
+              <span>Property</span>
+              <span className="font-medium">{propertyName}</span>
             </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-blue-700 text-xs">
-              🔒 Your payment is secured by Paystack. A popup will open to
-              complete your payment.
+            <div className="flex justify-between text-gray-600">
+              <span>Tenant</span>
+              <span className="font-medium">{tenantName}</span>
             </div>
-
-            {!scriptReady && (
-              <p className="text-xs text-center text-gray-400">
-                Loading payment system...
-              </p>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={onClose}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 bg-green-600 hover:bg-green-500 text-white"
-                onClick={handlePayNow}
-                disabled={isLoading || !scriptReady}
-              >
-                {isLoading
-                  ? "Verifying..."
-                  : `Pay ₦${totalPrice.toLocaleString()}`}
-              </Button>
+            <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2 text-base">
+              <span>Total Amount</span>
+              <span>₦{totalPrice.toLocaleString()}</span>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-blue-700 text-xs">
+            🔒 Your payment is secured by Paystack. A popup will open to
+            complete your payment.
+          </div>
+
+          {!scriptReady && (
+            <p className="text-xs text-center text-gray-400 animate-pulse">
+              Loading payment system...
+            </p>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-500 text-white"
+              onClick={handlePayNow}
+              disabled={isLoading || !scriptReady}
+            >
+              {isLoading
+                ? "Verifying..."
+                : `Pay ₦${totalPrice.toLocaleString()}`}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

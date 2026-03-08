@@ -197,3 +197,15 @@ model Payment {
 
   lease Lease @relation(fields: [leaseId], references: [id])
 }
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  userType    String   // "tenant" or "manager"
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  type        String   // "application_status" | "agreement_sent" | "agreement_signed" | "payment_received"
+  referenceId Int?     // applicationId or agreementId
+}

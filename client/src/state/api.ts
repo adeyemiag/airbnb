@@ -34,6 +34,18 @@ export interface PaymentRecord {
   paymentStatus: "Pending" | "Paid" | "PartiallyPaid" | "Overdue";
   leaseId: number;
 }
+
+export interface NotificationItem {
+  id: number;
+  userId: string;
+  userType: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  type: string;
+  referenceId?: number | null;
+}
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 import { FiltersState } from ".";
@@ -61,6 +73,7 @@ export const api = createApi({
     "Applications",
     "Agreements",
     "PaymentRecords",
+    "Notifications",
   ],
   endpoints: (build) => ({
     getAuthUser: build.query<User, void>({
@@ -461,6 +474,37 @@ export const api = createApi({
       query: (applicationId) => `payments/application/${applicationId}`,
       providesTags: ["PaymentRecords"],
     }),
+
+    // notification endpoints
+    getNotifications: build.query<
+      NotificationItem[],
+      { userId?: string; userType?: string }
+    >({
+      query: (params) => {
+        const q = new URLSearchParams();
+        if (params.userId) q.append("userId", params.userId);
+        if (params.userType) q.append("userType", params.userType);
+        return `notifications?${q.toString()}`;
+      },
+      providesTags: ["Notifications"],
+    }),
+
+    markAllRead: build.mutation<void, { userId: string; userType: string }>({
+      query: (body) => ({
+        url: "notifications/read-all",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+
+    markOneRead: build.mutation<NotificationItem, number>({
+      query: (id) => ({
+        url: `notifications/${id}/read`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
   }),
 });
 
@@ -488,4 +532,7 @@ export const {
   useUpdateAgreementStatusMutation,
   useVerifyPaymentMutation,
   useGetPaymentByApplicationQuery,
+  useGetNotificationsQuery,
+  useMarkAllReadMutation,
+  useMarkOneReadMutation,
 } = api;

@@ -1,13 +1,9 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { createNotification } from "./notificationControllers";
 
 const prisma = new PrismaClient();
 
-// ─── Pricing helper ───────────────────────────────────────────────────────────
-// Daily rate = pricePerMonth / 30
-// 2-6 days   → no discount
-// 7-29 days  → 5% weekly discount
-// 30+ days   → 10% monthly discount
 function calculateTotalPrice(
   pricePerMonth: number,
   startDate: Date,
@@ -16,11 +12,9 @@ function calculateTotalPrice(
   const diffMs = endDate.getTime() - startDate.getTime();
   const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   const dailyRate = pricePerMonth / 30;
-
   let discount = 0;
   if (days >= 30) discount = 0.1;
   else if (days >= 7) discount = 0.05;
-
   return Math.round(dailyRate * days * (1 - discount) * 100) / 100;
 }
 
@@ -30,30 +24,18 @@ export const listApplications = async (
 ): Promise<void> => {
   try {
     const { userId, userType } = req.query;
-
     let whereClause = {};
-
     if (userId && userType) {
-      if (userType === "tenant") {
+      if (userType === "tenant")
         whereClause = { tenantCognitoId: String(userId) };
-      } else if (userType === "manager") {
-        whereClause = {
-          property: {
-            managerCognitoId: String(userId),
-          },
-        };
-      }
+      else if (userType === "manager")
+        whereClause = { property: { managerCognitoId: String(userId) } };
     }
 
     const applications = await prisma.application.findMany({
       where: whereClause,
       include: {
-        property: {
-          include: {
-            location: true,
-            manager: true,
-          },
-        },
+        property: { include: { location: true, manager: true } },
         tenant: true,
       },
     });
@@ -61,9 +43,8 @@ export const listApplications = async (
     function calculateNextPaymentDate(startDate: Date): Date {
       const today = new Date();
       const nextPaymentDate = new Date(startDate);
-      while (nextPaymentDate <= today) {
+      while (nextPaymentDate <= today)
         nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-      }
       return nextPaymentDate;
     }
 
@@ -71,20 +52,14 @@ export const listApplications = async (
       applications.map(async (app) => {
         const lease = await prisma.lease.findFirst({
           where: {
-            tenant: {
-              cognitoId: app.tenantCognitoId,
-            },
+            tenant: { cognitoId: app.tenantCognitoId },
             propertyId: app.propertyId,
           },
           orderBy: { startDate: "desc" },
         });
-
         return {
           ...app,
-          property: {
-            ...app.property,
-            address: app.property.location.address,
-          },
+          property: { ...app.property, address: app.property.location.address },
           manager: app.property.manager,
           lease: lease
             ? {
@@ -122,7 +97,6 @@ export const createApplication = async (
       endDate,
     } = req.body;
 
-    // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -134,7 +108,6 @@ export const createApplication = async (
     const diffDays = Math.ceil(
       (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     );
-
     if (diffDays < 2) {
       res.status(400).json({ message: "Stay must be at least 2 days." });
       return;
@@ -142,7 +115,12 @@ export const createApplication = async (
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },
-      select: { pricePerMonth: true, securityDeposit: true },
+      select: {
+        pricePerMonth: true,
+        securityDeposit: true,
+        name: true,
+        managerCognitoId: true,
+      },
     });
 
     if (!property) {
@@ -150,27 +128,20 @@ export const createApplication = async (
       return;
     }
 
-    // Always recalculate price server-side — never trust the client value
     const totalPrice = calculateTotalPrice(property.pricePerMonth, start, end);
 
     const newApplication = await prisma.$transaction(async (prisma) => {
-      // Create lease using the tenant's chosen dates
       const lease = await prisma.lease.create({
         data: {
           startDate: start,
           endDate: end,
           rent: property.pricePerMonth,
           deposit: property.securityDeposit,
-          property: {
-            connect: { id: propertyId },
-          },
-          tenant: {
-            connect: { cognitoId: tenantCognitoId },
-          },
+          property: { connect: { id: propertyId } },
+          tenant: { connect: { cognitoId: tenantCognitoId } },
         },
       });
 
-      // Create application with stay dates + calculated price
       const application = await prisma.application.create({
         data: {
           applicationDate: new Date(applicationDate),
@@ -182,21 +153,21 @@ export const createApplication = async (
           startDate: start,
           endDate: end,
           totalPrice,
-          property: {
-            connect: { id: propertyId },
-          },
-          tenant: {
-            connect: { cognitoId: tenantCognitoId },
-          },
-          lease: {
-            connect: { id: lease.id },
-          },
+          property: { connect: { id: propertyId } },
+          tenant: { connect: { cognitoId: tenantCognitoId } },
+          lease: { connect: { id: lease.id } },
         },
-        include: {
-          property: true,
-          tenant: true,
-          lease: true,
-        },
+        include: { property: true, tenant: true, lease: true },
+      });
+
+      // Notify manager of new application
+      await createNotification(prisma, {
+        userId: property.managerCognitoId,
+        userType: "manager",
+        title: "New Application Received",
+        message: `${name} has applied for ${property.name}.`,
+        type: "application_status",
+        referenceId: application.id,
       });
 
       return application;
@@ -217,14 +188,10 @@ export const updateApplicationStatus = async (
   try {
     const { id } = req.params;
     const { status } = req.body;
-    console.log("status:", status);
 
     const application = await prisma.application.findUnique({
       where: { id: Number(id) },
-      include: {
-        property: true,
-        tenant: true,
-      },
+      include: { property: true, tenant: true },
     });
 
     if (!application) {
@@ -246,42 +213,37 @@ export const updateApplicationStatus = async (
         },
       });
 
-      // Update the property to connect the tenant
       await prisma.property.update({
         where: { id: application.propertyId },
         data: {
-          tenants: {
-            connect: { cognitoId: application.tenantCognitoId },
-          },
+          tenants: { connect: { cognitoId: application.tenantCognitoId } },
         },
       });
 
-      // Update the application with the new lease ID
       await prisma.application.update({
         where: { id: Number(id) },
         data: { status, leaseId: newLease.id },
-        include: {
-          property: true,
-          tenant: true,
-          lease: true,
-        },
       });
     } else {
-      // Update the application status (for both "Denied" and other statuses)
       await prisma.application.update({
         where: { id: Number(id) },
         data: { status },
       });
     }
 
-    // Respond with the updated application details
+    // Notify tenant of status change
+    await createNotification(prisma, {
+      userId: application.tenantCognitoId,
+      userType: "tenant",
+      title: `Application ${status}`,
+      message: `Your application for ${application.property.name} has been ${status.toLowerCase()}.`,
+      type: "application_status",
+      referenceId: application.id,
+    });
+
     const updatedApplication = await prisma.application.findUnique({
       where: { id: Number(id) },
-      include: {
-        property: true,
-        tenant: true,
-        lease: true,
-      },
+      include: { property: true, tenant: true, lease: true },
     });
 
     res.json(updatedApplication);

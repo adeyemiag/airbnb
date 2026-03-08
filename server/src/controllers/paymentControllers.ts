@@ -1,43 +1,41 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import axios from "axios";
+import { createNotification } from "./notificationControllers";
 
 const prisma = new PrismaClient();
 
-// Verify Paystack transaction and record payment
 export const verifyPayment = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { reference, applicationId } = req.body;
 
     if (!reference || !applicationId) {
-      res.status(400).json({ message: "Reference and applicationId are required." });
+      res
+        .status(400)
+        .json({ message: "Reference and applicationId are required." });
       return;
     }
 
-    // Verify with Paystack
     const paystackResponse = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-        },
-      }
+        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+      },
     );
 
-    const { status, amount, customer } = paystackResponse.data.data;
+    const { status, amount } = paystackResponse.data.data;
 
     if (status !== "success") {
       res.status(400).json({ message: "Payment verification failed." });
       return;
     }
 
-    // Get the application
     const application = await prisma.application.findUnique({
       where: { id: Number(applicationId) },
-      include: { lease: true },
+      include: { lease: true, property: true, tenant: true },
     });
 
     if (!application) {
@@ -45,23 +43,19 @@ export const verifyPayment = async (
       return;
     }
 
-    // Check not already paid
     const existingPayment = await prisma.payment.findFirst({
-      where: {
-        leaseId: application.leaseId!,
-        paymentStatus: "Paid",
-      },
+      where: { leaseId: application.leaseId!, paymentStatus: "Paid" },
     });
 
     if (existingPayment) {
-      res.status(400).json({ message: "Payment already recorded for this application." });
+      res
+        .status(400)
+        .json({ message: "Payment already recorded for this application." });
       return;
     }
 
-    // Paystack amount is in kobo (smallest unit), convert to naira
     const amountPaidNaira = amount / 100;
 
-    // Record payment
     const payment = await prisma.payment.create({
       data: {
         amountDue: application.totalPrice,
@@ -71,6 +65,34 @@ export const verifyPayment = async (
         paymentStatus: "Paid",
         leaseId: application.leaseId!,
       },
+    });
+
+    // Connect tenant to property (residence) only after payment
+    await prisma.property.update({
+      where: { id: application.propertyId },
+      data: {
+        tenants: { connect: { cognitoId: application.tenantCognitoId } },
+      },
+    });
+
+    // Notify manager of payment
+    await createNotification(prisma, {
+      userId: application.property.managerCognitoId,
+      userType: "manager",
+      title: "Payment Received",
+      message: `${application.tenant.name} has paid ₦${amountPaidNaira.toLocaleString()} for ${application.property.name}.`,
+      type: "payment_received",
+      referenceId: application.id,
+    });
+
+    // Notify tenant of successful payment
+    await createNotification(prisma, {
+      userId: application.tenantCognitoId,
+      userType: "tenant",
+      title: "Payment Successful",
+      message: `Your payment of ₦${amountPaidNaira.toLocaleString()} for ${application.property.name} was successful. The property is now your residence!`,
+      type: "payment_received",
+      referenceId: application.id,
     });
 
     res.status(201).json({
@@ -85,28 +107,23 @@ export const verifyPayment = async (
   }
 };
 
-// Get payment status for an application
 export const getPaymentByApplication = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { applicationId } = req.params;
-
     const application = await prisma.application.findUnique({
       where: { id: Number(applicationId) },
     });
-
     if (!application || !application.leaseId) {
       res.status(404).json({ message: "Application or lease not found." });
       return;
     }
-
     const payment = await prisma.payment.findFirst({
       where: { leaseId: application.leaseId },
       orderBy: { paymentDate: "desc" },
     });
-
     res.json(payment ?? null);
   } catch (error: any) {
     res
