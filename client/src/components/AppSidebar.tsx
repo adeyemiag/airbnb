@@ -51,7 +51,7 @@ const AppSidebar = ({ userType }: AppSidebarProps) => {
   return (
     <Sidebar
       collapsible="icon"
-      className="fixed left-0 bg-white shadow-lg"
+      className="fixed left-0 border-r border-gray-100 bg-white"
       style={{
         top: `${NAVBAR_HEIGHT}px`,
         height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
@@ -62,28 +62,33 @@ const AppSidebar = ({ userType }: AppSidebarProps) => {
           <SidebarMenuItem>
             <div
               className={cn(
-                "flex min-h-[56px] w-full items-center pt-3 mb-3",
-                open ? "justify-between px-6" : "justify-center"
+                "flex min-h-[64px] w-full items-center pt-4 mb-2",
+                open ? "justify-between px-5" : "justify-center",
               )}
             >
               {open ? (
                 <>
-                  <h1 className="text-xl font-bold text-gray-800">
-                    {userType === "manager" ? "Manager View" : "Renter View"}
-                  </h1>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                      {userType === "manager" ? "Manager" : "Renter"}
+                    </p>
+                    <h1 className="text-base font-bold text-gray-800">
+                      Dashboard
+                    </h1>
+                  </div>
                   <button
-                    className="hover:bg-gray-100 p-2 rounded-md"
+                    className="hover:bg-gray-100 p-2 rounded-lg transition-colors"
                     onClick={() => toggleSidebar()}
                   >
-                    <X className="h-6 w-6 text-gray-600" />
+                    <X className="h-5 w-5 text-gray-500" />
                   </button>
                 </>
               ) : (
                 <button
-                  className="hover:bg-gray-100 p-2 rounded-md"
+                  className="hover:bg-gray-100 p-2 rounded-lg transition-colors"
                   onClick={() => toggleSidebar()}
                 >
-                  <Menu className="h-6 w-6 text-gray-600" />
+                  <Menu className="h-5 w-5 text-gray-500" />
                 </button>
               )}
             </div>
@@ -91,37 +96,40 @@ const AppSidebar = ({ userType }: AppSidebarProps) => {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarMenu>
+      <SidebarContent className="px-3">
+        <SidebarMenu className="space-y-1">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
-
             return (
               <SidebarMenuItem key={link.href}>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "flex items-center px-7 py-7",
+                    "flex items-center rounded-xl px-4 py-3 transition-all duration-200",
                     isActive
-                      ? "bg-gray-100"
-                      : "text-gray-600 hover:bg-gray-100",
-                    open ? "text-blue-600" : "ml-[5px]"
+                      ? "bg-primary-700 text-white shadow-md shadow-primary-700/20"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-800",
+                    !open && "justify-center px-0",
                   )}
                 >
                   <Link href={link.href} className="w-full" scroll={false}>
                     <div className="flex items-center gap-3">
                       <link.icon
-                        className={`h-5 w-5 ${
-                          isActive ? "text-blue-600" : "text-gray-600"
-                        }`}
+                        className={cn(
+                          "h-5 w-5 flex-shrink-0",
+                          isActive ? "text-white" : "text-gray-400",
+                        )}
                       />
-                      <span
-                        className={`font-medium ${
-                          isActive ? "text-blue-600" : "text-gray-600"
-                        }`}
-                      >
-                        {link.label}
-                      </span>
+                      {open && (
+                        <span
+                          className={cn(
+                            "font-medium text-sm",
+                            isActive ? "text-white" : "text-gray-600",
+                          )}
+                        >
+                          {link.label}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 </SidebarMenuButton>

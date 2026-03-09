@@ -10,7 +10,7 @@ import {
   useGetAgreementsQuery,
   useUpdateApplicationStatusMutation,
 } from "@/state/api";
-import { CircleCheckBig, Download, File, Hospital, Send } from "lucide-react";
+import { Check, Download, ExternalLink, Send, X } from "lucide-react";
 import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -38,50 +38,64 @@ const Applications = () => {
 
   const [updateApplicationStatus] = useUpdateApplicationStatusMutation();
 
-  const handleStatusChange = async (id: number, status: string) => {
-    await updateApplicationStatus({ id, status });
-  };
-
   if (isLoading) return <Loading />;
   if (isError || !applications) return <div>Error fetching applications</div>;
 
-  const filteredApplications = applications?.filter((application) => {
-    if (activeTab === "all") return true;
-    return application.status.toLowerCase() === activeTab;
-  });
+  const filteredApplications = applications.filter((app) =>
+    activeTab === "all" ? true : app.status.toLowerCase() === activeTab,
+  );
 
   const agreementMap = new Map(
     (agreements ?? []).map((a) => [a.applicationId, a]),
   );
 
+  const tabs = ["all", "pending", "approved", "denied"];
+  const tabCounts = tabs.reduce(
+    (acc, tab) => {
+      acc[tab] =
+        tab === "all"
+          ? applications.length
+          : applications.filter((a) => a.status.toLowerCase() === tab).length;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
   return (
-    <div className="dashboard-container flex flex-col w-full pt-12 pb-12">
-      <div className="w-full max-w-6xl mx-auto transform translate-x-36 px-8">
+    <div className="min-h-screen bg-gray-50/50 px-8 py-10">
+      <div className="max-w-5xl mx-auto">
         <Header
           title="Applications"
-          subtitle="View and manage applications for your properties"
+          subtitle="Review and manage rental applications for your properties"
         />
 
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full my-5"
-        >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="approved">Approved</TabsTrigger>
-            <TabsTrigger value="denied">Denied</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="rounded-lg capitalize text-sm font-medium data-[state=active]:bg-primary-700 data-[state=active]:text-white data-[state=active]:shadow-sm px-4 py-2"
+              >
+                {tab}
+                <span className="ml-2 text-xs bg-gray-100 data-[state=active]:bg-primary-600 px-1.5 py-0.5 rounded-full">
+                  {tabCounts[tab]}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          {["all", "pending", "approved", "denied"].map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-5 w-full">
-              {filteredApplications
-                .filter(
-                  (application) =>
-                    tab === "all" || application.status.toLowerCase() === tab,
-                )
-                .map((application) => {
+          {tabs.map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-0">
+              {filteredApplications.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <p className="text-lg font-medium">No applications found</p>
+                  <p className="text-sm mt-1">
+                    Applications will appear here once tenants apply
+                  </p>
+                </div>
+              ) : (
+                filteredApplications.map((application) => {
                   const agreement = agreementMap.get(application.id);
                   const agreementSent = !!agreement;
                   const agreementSigned = agreement?.status === "Signed";
@@ -93,74 +107,53 @@ const Applications = () => {
                       application={application}
                       userType="manager"
                     >
-                      <div className="flex justify-between gap-5 w-full pb-4 px-4">
-                        <div
-                          className={`p-4 grow ${
-                            application.status === "Approved"
-                              ? "bg-green-100 text-green-700"
-                              : application.status === "Denied"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <File className="w-5 h-5 flex-shrink-0" />
-                            <span>
-                              Application submitted on{" "}
-                              {new Date(
-                                application.applicationDate,
-                              ).toLocaleDateString()}
-                              .
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-5 py-4">
+                        {/* Status info */}
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                          <span>
+                            Applied{" "}
+                            {new Date(
+                              application.applicationDate,
+                            ).toLocaleDateString()}
+                          </span>
+                          {agreementSigned && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                              <Check className="w-3 h-3" /> Agreement Signed
                             </span>
-                            <CircleCheckBig className="w-5 h-5 flex-shrink-0" />
-                            <span className="font-semibold">
-                              {application.status === "Approved" &&
-                                "This application has been approved."}
-                              {application.status === "Denied" &&
-                                "This application has been denied."}
-                              {application.status === "Pending" &&
-                                "This application is pending review."}
-                            </span>
-                            {agreementSigned && (
-                              <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full">
-                                Agreement Signed ✓
+                          )}
+                          {agreementSent &&
+                            !agreementSigned &&
+                            !agreementRejected && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                                Awaiting Tenant Signature
                               </span>
                             )}
-                            {agreementSent &&
-                              !agreementSigned &&
-                              !agreementRejected && (
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                  Agreement Sent — Awaiting Tenant
-                                </span>
-                              )}
-                            {agreementRejected && (
-                              <span className="px-2 py-0.5 bg-red-200 text-red-700 text-xs rounded-full">
-                                Agreement Rejected by Tenant
-                              </span>
-                            )}
-                          </div>
+                          {agreementRejected && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                              <X className="w-3 h-3" /> Agreement Rejected
+                            </span>
+                          )}
                         </div>
 
-                        <div className="flex gap-2 flex-wrap justify-end">
+                        {/* Action buttons */}
+                        <div className="flex gap-2 flex-wrap">
                           <Link
                             href={`/managers/properties/${application.property.id}`}
-                            className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-colors"
                             scroll={false}
                           >
-                            <Hospital className="w-5 h-5 mr-2" />
-                            Property Details
+                            <ExternalLink className="w-4 h-4" /> Property
                           </Link>
 
                           {application.status === "Pending" &&
                             !agreementSent && (
                               <button
-                                className="bg-blue-600 text-white py-2 px-4 rounded-md flex items-center justify-center hover:bg-blue-500"
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary-700 text-white rounded-xl hover:bg-primary-600 transition-colors"
                                 onClick={() =>
                                   setSendAgreementApplication(application)
                                 }
                               >
-                                <Send className="w-4 h-4 mr-2" />
-                                Send Agreement
+                                <Send className="w-4 h-4" /> Send Agreement
                               </button>
                             )}
 
@@ -168,50 +161,48 @@ const Applications = () => {
                             agreementSigned && (
                               <>
                                 <button
-                                  className="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-500"
+                                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-colors"
                                   onClick={() =>
-                                    handleStatusChange(
-                                      application.id,
-                                      "Approved",
-                                    )
+                                    updateApplicationStatus({
+                                      id: application.id,
+                                      status: "Approved",
+                                    })
                                   }
                                 >
-                                  Approve
+                                  <Check className="w-4 h-4" /> Approve
                                 </button>
                                 <button
-                                  className="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-500"
+                                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-400 transition-colors"
                                   onClick={() =>
-                                    handleStatusChange(application.id, "Denied")
+                                    updateApplicationStatus({
+                                      id: application.id,
+                                      status: "Denied",
+                                    })
                                   }
                                 >
-                                  Deny
+                                  <X className="w-4 h-4" /> Deny
                                 </button>
                               </>
                             )}
 
                           {application.status === "Approved" && (
                             <button
-                              className={`bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50 ${!agreement ? "opacity-40 cursor-not-allowed" : ""}`}
+                              className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors ${!agreement ? "opacity-40 cursor-not-allowed" : ""}`}
                               disabled={!agreement}
                               onClick={() =>
                                 agreement && downloadAgreementAsPDF(agreement)
                               }
                             >
-                              <Download className="w-5 h-5 mr-2" />
-                              Download Agreement
-                            </button>
-                          )}
-
-                          {application.status === "Denied" && (
-                            <button className="bg-gray-800 text-white py-2 px-4 rounded-md flex items-center justify-center hover:bg-secondary-500 hover:text-primary-50">
-                              Contact User
+                              <Download className="w-4 h-4" /> Download
+                              Agreement
                             </button>
                           )}
                         </div>
                       </div>
                     </ApplicationCard>
                   );
-                })}
+                })
+              )}
             </TabsContent>
           ))}
         </Tabs>

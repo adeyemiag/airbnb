@@ -5,6 +5,7 @@ import {
   useGetAuthUserQuery,
   useUpdateManagerSettingsMutation,
 } from "@/state/api";
+import { Settings } from "lucide-react";
 import React from "react";
 
 const ManagerSettings = () => {
@@ -20,20 +21,24 @@ const ManagerSettings = () => {
   };
 
   const handleSubmit = async (data: typeof initialData) => {
-    await updateManager({
-      cognitoId: authUser?.cognitoInfo?.userId,
-      ...data,
-    });
+    await updateManager({ cognitoId: authUser?.cognitoInfo?.userId, ...data });
   };
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="w-full max-w-2xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold">Manager Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage your account preferences and personal information
-          </p>
+    <div className="min-h-screen bg-gray-50/50 px-8 py-10">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+            <Settings className="w-5 h-5 text-primary-700" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Account Settings
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Manage your profile and preferences
+            </p>
+          </div>
         </div>
         <SettingsForm
           initialData={initialData}

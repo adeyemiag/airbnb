@@ -8,6 +8,7 @@ import {
   useGetPropertiesQuery,
   useGetTenantQuery,
 } from "@/state/api";
+import { Heart } from "lucide-react";
 import React from "react";
 
 const Favorites = () => {
@@ -18,7 +19,6 @@ const Favorites = () => {
       skip: !authUser?.cognitoInfo?.userId,
     },
   );
-
   const {
     data: favoriteProperties,
     isLoading,
@@ -32,16 +32,15 @@ const Favorites = () => {
   if (error) return <div>Error loading favorites</div>;
 
   return (
-    <div className="dashboard-container ml-60 px-16 py-12">
-      <Header
-        title="Favorited Properties"
-        subtitle="Browse and manage your saved property listings"
-      />
+    <div className="min-h-screen bg-gray-50/50 px-8 py-10">
+      <div className="max-w-6xl mx-auto">
+        <Header
+          title="Saved Properties"
+          subtitle="Properties you've bookmarked for later"
+        />
 
-      {/* No stretch + slightly right positioned */}
-      <div className="mt-8 ml-12">
         {favoriteProperties && favoriteProperties.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {favoriteProperties.map((property) => (
               <Card
                 key={property.id}
@@ -54,9 +53,11 @@ const Favorites = () => {
             ))}
           </div>
         ) : (
-          <div className="mt-10">
-            <p className="text-gray-500 text-lg">
-              You don&apos;t have any favorited properties
+          <div className="text-center py-20 text-gray-400">
+            <Heart className="w-12 h-12 mx-auto mb-4 text-gray-200" />
+            <p className="text-lg font-medium">No saved properties</p>
+            <p className="text-sm mt-1">
+              Browse properties and save ones you like
             </p>
           </div>
         )}

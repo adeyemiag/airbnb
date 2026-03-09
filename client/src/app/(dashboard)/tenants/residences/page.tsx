@@ -8,6 +8,7 @@ import {
   useGetCurrentResidencesQuery,
   useGetTenantQuery,
 } from "@/state/api";
+import { Home } from "lucide-react";
 import React from "react";
 
 const Residences = () => {
@@ -18,7 +19,6 @@ const Residences = () => {
       skip: !authUser?.cognitoInfo?.userId,
     },
   );
-
   const {
     data: currentResidences,
     isLoading,
@@ -28,17 +28,18 @@ const Residences = () => {
   });
 
   if (isLoading) return <Loading />;
-  if (error) return <div>Error loading current residences</div>;
+  if (error) return <div>Error loading residences</div>;
 
   return (
-    <div className="dashboard-container ml-72 px-16 py-12">
-      <Header
-        title="Current Residences"
-        subtitle="View and manage your current living spaces"
-      />
-      <div className="w-full">
+    <div className="min-h-screen bg-gray-50/50 px-8 py-10">
+      <div className="max-w-6xl mx-auto">
+        <Header
+          title="My Residences"
+          subtitle="Properties you are currently renting"
+        />
+
         {currentResidences && currentResidences.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {currentResidences.map((property) => (
               <Card
                 key={property.id}
@@ -51,9 +52,13 @@ const Residences = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 mt-6">
-            You don’t have any current residences
-          </p>
+          <div className="text-center py-20 text-gray-400">
+            <Home className="w-12 h-12 mx-auto mb-4 text-gray-200" />
+            <p className="text-lg font-medium">No residences yet</p>
+            <p className="text-sm mt-1">
+              Complete a payment to move a property here
+            </p>
+          </div>
         )}
       </div>
     </div>

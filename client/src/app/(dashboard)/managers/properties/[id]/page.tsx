@@ -3,14 +3,6 @@
 import Header from "@/components/Header";
 import Loading from "@/components/Loading";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   useGetAgreementsQuery,
   useGetAuthUserQuery,
   useGetPaymentsQuery,
@@ -18,7 +10,14 @@ import {
   useGetPropertyQuery,
 } from "@/state/api";
 import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
-import { ArrowDownToLine, ArrowLeft, Check, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  Mail,
+  Phone,
+  XCircle,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -39,7 +38,7 @@ const PropertyTenants = () => {
     { userId: authUser?.cognitoInfo?.userId, userType: "manager" },
     { skip: !authUser?.cognitoInfo?.userId },
   );
-  // Map tenantCognitoId -> agreement for quick lookup
+
   const agreementByTenant = new Map(
     (agreements ?? []).map((a) => [a.tenantCognitoId, a]),
   );
@@ -47,136 +46,140 @@ const PropertyTenants = () => {
   if (propertyLoading || leasesLoading || paymentsLoading) return <Loading />;
 
   const getCurrentMonthPaymentStatus = (leaseId: number) => {
-    const currentDate = new Date();
-    const currentMonthPayment = payments?.find(
-      (payment) =>
-        payment.leaseId === leaseId &&
-        new Date(payment.dueDate).getMonth() === currentDate.getMonth() &&
-        new Date(payment.dueDate).getFullYear() === currentDate.getFullYear(),
+    const now = new Date();
+    const match = payments?.find(
+      (p) =>
+        p.leaseId === leaseId &&
+        new Date(p.dueDate).getMonth() === now.getMonth() &&
+        new Date(p.dueDate).getFullYear() === now.getFullYear(),
     );
-    return currentMonthPayment?.paymentStatus || "Not Paid";
+    return match?.paymentStatus || "Not Paid";
   };
 
   return (
-    <div className="dashboard-container p-6 flex justify-end">
-      <div className="w-full max-w-6xl">
-        {/* Back to properties page */}
+    <div className="min-h-screen bg-gray-50/50 px-8 py-10">
+      <div className="max-w-5xl mx-auto">
         <Link
           href="/managers/properties"
-          className="flex items-center mb-4 hover:text-primary-500"
+          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
           scroll={false}
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          <span>Back to Properties</span>
+          <ArrowLeft className="w-4 h-4" /> Back to Properties
         </Link>
 
         <Header
-          title={property?.name || "My Property"}
+          title={property?.name || "Property"}
           subtitle="Manage tenants and leases for this property"
         />
 
-        <div className="w-full space-y-6">
-          <div className="mt-8 bg-white rounded-xl shadow-md overflow-hidden p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-2xl font-bold mb-1">Tenants Overview</h2>
-                <p className="text-sm text-gray-500">
-                  Manage and view all tenants for this property.
-                </p>
-              </div>
-              <div>
-                <button
-                  className={`bg-white border border-gray-300 text-gray-700 py-2
-              px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50`}
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  <span>Download All</span>
-                </button>
-              </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                Tenants Overview
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {leases?.length ?? 0} active lease
+                {leases?.length !== 1 ? "s" : ""}
+              </p>
             </div>
-            <hr className="mt-4 mb-1" />
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tenant</TableHead>
-                    <TableHead>Lease Period</TableHead>
-                    <TableHead>Monthly Rent</TableHead>
-                    <TableHead>Current Month Status</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leases?.map((lease) => (
-                    <TableRow key={lease.id} className="h-24">
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <Image
-                            src="/landing-i1.png"
-                            alt={lease.tenant.name}
-                            width={40}
-                            height={40}
-                            className="rounded-full"
-                          />
-                          <div>
-                            <div className="font-semibold">
-                              {lease.tenant.name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {lease.tenant.email}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          {new Date(lease.startDate).toLocaleDateString()} -
-                        </div>
-                        <div>
-                          {new Date(lease.endDate).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>₦{lease.rent.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            getCurrentMonthPaymentStatus(lease.id) === "Paid"
-                              ? "bg-green-100 text-green-800 border-green-300"
-                              : "bg-red-100 text-red-800 border-red-300"
-                          }`}
-                        >
-                          {getCurrentMonthPaymentStatus(lease.id) ===
-                            "Paid" && (
-                            <Check className="w-4 h-4 inline-block mr-1" />
-                          )}
-                          {getCurrentMonthPaymentStatus(lease.id)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{lease.tenant.phoneNumber}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const agr = agreementByTenant.get(
-                            lease.tenantCognitoId,
-                          );
-                          return (
-                            <button
-                              className={`border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50 ${!agr ? "opacity-40 cursor-not-allowed" : ""}`}
-                              disabled={!agr}
-                              onClick={() => agr && downloadAgreementAsPDF(agr)}
-                            >
-                              <ArrowDownToLine className="w-4 h-4 mr-1" />
-                              Download Agreement
-                            </button>
-                          );
-                        })()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
+              <Download className="w-4 h-4" /> Export All
+            </button>
           </div>
+
+          {!leases || leases.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <p className="text-base font-medium">No tenants yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {leases.map((lease) => {
+                const payStatus = getCurrentMonthPaymentStatus(lease.id);
+                const isPaid = payStatus === "Paid";
+                const agr = agreementByTenant.get(lease.tenantCognitoId);
+
+                return (
+                  <div
+                    key={lease.id}
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-5 px-6 py-5 hover:bg-gray-50/50 transition-colors"
+                  >
+                    {/* Avatar + Name */}
+                    <div className="flex items-center gap-3 sm:w-52">
+                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-700 font-bold">
+                          {lease.tenant.name[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">
+                          {lease.tenant.name}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {lease.tenant.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Lease period */}
+                    <div className="sm:w-44">
+                      <p className="text-xs text-gray-400">Lease Period</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {new Date(lease.startDate).toLocaleDateString()} –{" "}
+                        {new Date(lease.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    {/* Rent */}
+                    <div className="sm:w-32">
+                      <p className="text-xs text-gray-400">Monthly Rent</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        ₦{lease.rent.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Payment status */}
+                    <div className="sm:w-36">
+                      <p className="text-xs text-gray-400 mb-1">This Month</p>
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${isPaid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}
+                      >
+                        {isPaid ? (
+                          <CheckCircle2 className="w-3 h-3" />
+                        ) : (
+                          <XCircle className="w-3 h-3" />
+                        )}
+                        {payStatus}
+                      </span>
+                    </div>
+
+                    {/* Contact */}
+                    <div className="flex gap-2 ml-auto">
+                      <a
+                        href={`tel:${lease.tenant.phoneNumber}`}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </a>
+                      <a
+                        href={`mailto:${lease.tenant.email}`}
+                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Mail className="w-4 h-4" />
+                      </a>
+                      <button
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors ${!agr ? "opacity-40 cursor-not-allowed" : ""}`}
+                        disabled={!agr}
+                        onClick={() => agr && downloadAgreementAsPDF(agr)}
+                      >
+                        <Download className="w-3.5 h-3.5" /> Agreement
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

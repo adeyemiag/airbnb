@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { Form } from "./ui/form";
 import { CustomFormField } from "./FormField";
 import { Button } from "./ui/button";
+import { Pencil } from "lucide-react";
 
 const SettingsForm = ({
   initialData,
@@ -19,9 +20,7 @@ const SettingsForm = ({
 
   const toggleEditMode = () => {
     setEditMode(!editMode);
-    if (editMode) {
-      form.reset(initialData);
-    }
+    if (editMode) form.reset(initialData);
   };
 
   const handleSubmit = async (data: SettingsFormData) => {
@@ -30,13 +29,27 @@ const SettingsForm = ({
   };
 
   return (
-    <div className="bg-white rounded-xl p-6">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-sm font-semibold text-gray-700">
+          Profile Information
+        </p>
+        <button
+          type="button"
+          onClick={toggleEditMode}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <Pencil className="w-3 h-3" />
+          {editMode ? "Cancel" : "Edit"}
+        </button>
+      </div>
+
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <CustomFormField name="name" label="Name" disabled={!editMode} />
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+          <CustomFormField name="name" label="Full Name" disabled={!editMode} />
           <CustomFormField
             name="email"
-            label="Email"
+            label="Email Address"
             type="email"
             disabled={!editMode}
           />
@@ -46,23 +59,16 @@ const SettingsForm = ({
             disabled={!editMode}
           />
 
-          <div className="pt-4 flex justify-between">
-            <Button
-              type="button"
-              onClick={toggleEditMode}
-              className="bg-secondary-500 text-white hover:bg-secondary-600"
-            >
-              {editMode ? "Cancel" : "Edit"}
-            </Button>
-            {editMode && (
+          {editMode && (
+            <div className="pt-2">
               <Button
                 type="submit"
-                className="bg-primary-700 text-white hover:bg-primary-800"
+                className="w-full bg-primary-700 text-white hover:bg-primary-600 rounded-xl py-2.5"
               >
                 Save Changes
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </form>
       </Form>
     </div>

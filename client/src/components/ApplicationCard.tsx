@@ -11,115 +11,141 @@ const ApplicationCard = ({
     application.property.photoUrls?.[0] || "/placeholder.jpg",
   );
 
-  const statusColor =
-    application.status === "Approved"
-      ? "bg-green-500"
-      : application.status === "Denied"
-        ? "bg-red-500"
-        : "bg-yellow-500";
-
+  const statusConfig = {
+    Approved: {
+      bg: "bg-emerald-50",
+      text: "text-emerald-700",
+      dot: "bg-emerald-500",
+      label: "Approved",
+    },
+    Denied: {
+      bg: "bg-red-50",
+      text: "text-red-700",
+      dot: "bg-red-500",
+      label: "Denied",
+    },
+    Pending: {
+      bg: "bg-amber-50",
+      text: "text-amber-700",
+      dot: "bg-amber-500",
+      label: "Pending",
+    },
+  };
+  const status =
+    statusConfig[application.status as keyof typeof statusConfig] ||
+    statusConfig.Pending;
   const contactPerson =
     userType === "manager" ? application.tenant : application.manager;
 
   return (
-    <div className="border rounded-xl overflow-hidden shadow-sm bg-white mb-4">
-      <div className="flex flex-col lg:flex-row  items-start lg:items-center justify-between px-6 md:px-4 py-6 gap-6 lg:gap-4">
-        {/* Property Info Section */}
-        <div className="flex flex-col lg:flex-row gap-5 w-full lg:w-auto">
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200 mb-4">
+      <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-0">
+        {/* Image */}
+        <div className="relative w-full lg:w-56 h-48 lg:h-auto flex-shrink-0">
           <Image
             src={imgSrc}
             alt={application.property.name}
-            width={200}
-            height={150}
-            className="rounded-xl object-cover w-full lg:w-[200px] h-[150px]"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            fill
+            className="object-cover lg:rounded-l-2xl"
+            sizes="(max-width: 1024px) 100vw, 224px"
             onError={() => setImgSrc("/placeholder.jpg")}
           />
-          <div className="flex flex-col justify-between">
-            <div>
-              <h2 className="text-xl font-bold my-2">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent lg:rounded-l-2xl" />
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-col lg:flex-row flex-1 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+          {/* Property info */}
+          <div className="flex-1 p-5">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h2 className="text-lg font-bold text-gray-900 leading-tight">
                 {application.property.name}
               </h2>
-              <div className="flex items-center mb-2">
-                <MapPin className="w-5 h-5 mr-1" />
-                <span>{`${application.property.location.city}, ${application.property.location.country}`}</span>
-              </div>
-            </div>
-            <div className="text-xl font-semibold">
-              ₦{application.property.pricePerMonth.toLocaleString()}{" "}
-              <span className="text-sm font-normal">/ month</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Divider - visible only on desktop */}
-        <div className="hidden lg:block border-[0.5px] border-primary-200 h-48" />
-
-        {/* Status Section */}
-        <div className="flex flex-col justify-between w-full lg:basis-2/12 lg:h-48 py-2 gap-3 lg:gap-0">
-          <div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500">Status:</span>
               <span
-                className={`px-2 py-1 ${statusColor} text-white rounded-full text-sm`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${status.bg} ${status.text}`}
               >
-                {application.status}
+                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                {status.label}
               </span>
             </div>
-            <hr className="mt-3" />
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Start Date:</span>{" "}
-            {new Date(application.lease?.startDate).toLocaleDateString()}
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">End Date:</span>{" "}
-            {new Date(application.lease?.endDate).toLocaleDateString()}
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Next Payment:</span>{" "}
-            {new Date(application.lease?.nextPaymentDate).toLocaleDateString()}
-          </div>
-        </div>
-
-        {/* Divider - visible only on desktop */}
-        <div className="hidden lg:block border-[0.5px] border-primary-200 h-48" />
-
-        {/* Contact Person Section */}
-        <div className="flex flex-col justify-start gap-5 w-full lg:basis-3/12 lg:h-48 py-2">
-          <div>
-            <div className="text-lg font-semibold">
-              {userType === "manager" ? "Tenant" : "Manager"}
+            <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-4">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>
+                {application.property.location.city},{" "}
+                {application.property.location.country}
+              </span>
             </div>
-            <hr className="mt-3" />
+            <p className="text-2xl font-bold text-gray-900">
+              ₦{application.property.pricePerMonth.toLocaleString()}
+              <span className="text-sm font-normal text-gray-400"> / mo</span>
+            </p>
           </div>
-          <div className="flex gap-4">
-            <div>
-              <Image
-                src="/landing-i1.png"
-                alt={contactPerson.name}
-                width={40}
-                height={40}
-                className="rounded-full mr-2 min-w-[40px] min-h-[40px]"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="font-semibold">{contactPerson.name}</div>
-              <div className="text-sm flex items-center text-primary-600">
-                <PhoneCall className="w-5 h-5 mr-2" />
-                {contactPerson.phoneNumber}
+
+          {/* Lease dates */}
+          <div className="lg:w-52 p-5 flex flex-col justify-center gap-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+              Lease Info
+            </p>
+            {[
+              {
+                label: "Start",
+                value: new Date(
+                  application.lease?.startDate,
+                ).toLocaleDateString(),
+              },
+              {
+                label: "End",
+                value: new Date(
+                  application.lease?.endDate,
+                ).toLocaleDateString(),
+              },
+              {
+                label: "Next Payment",
+                value: new Date(
+                  application.lease?.nextPaymentDate,
+                ).toLocaleDateString(),
+              },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex justify-between items-center">
+                <span className="text-xs text-gray-400">{label}</span>
+                <span className="text-xs font-semibold text-gray-700">
+                  {value}
+                </span>
               </div>
-              <div className="text-sm flex items-center text-primary-600">
-                <Mail className="w-5 h-5 mr-2" />
-                {contactPerson.email}
+            ))}
+          </div>
+
+          {/* Contact */}
+          <div className="lg:w-56 p-5 flex flex-col justify-center">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
+              {userType === "manager" ? "Tenant" : "Manager"}
+            </p>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary-700 font-bold text-sm">
+                  {contactPerson?.name?.[0]?.toUpperCase()}
+                </span>
+              </div>
+              <span className="font-semibold text-gray-800 text-sm">
+                {contactPerson?.name}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <PhoneCall className="w-3.5 h-3.5 text-gray-400" />
+                <span>{contactPerson?.phoneNumber}</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Mail className="w-3.5 h-3.5 text-gray-400" />
+                <span className="truncate">{contactPerson?.email}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <hr className="my-4" />
-      {children}
+      {/* Footer actions */}
+      <div className="border-t border-gray-100 bg-gray-50/50">{children}</div>
     </div>
   );
 };
