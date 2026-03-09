@@ -174,3 +174,31 @@ export const updateAgreementStatus = async (
       .json({ message: `Error updating agreement: ${error.message}` });
   }
 };
+
+export const deleteAgreement = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { applicationId } = req.params;
+
+    const agreement = await prisma.agreement.findUnique({
+      where: { applicationId: Number(applicationId) },
+    });
+
+    if (!agreement) {
+      res.status(404).json({ message: "Agreement not found." });
+      return;
+    }
+
+    await prisma.agreement.delete({
+      where: { applicationId: Number(applicationId) },
+    });
+
+    res.json({ message: "Agreement deleted." });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ message: `Error deleting agreement: ${error.message}` });
+  }
+};

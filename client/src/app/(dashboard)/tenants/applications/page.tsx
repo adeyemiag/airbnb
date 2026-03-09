@@ -8,8 +8,9 @@ import {
   useGetAuthUserQuery,
   useGetAgreementsQuery,
   useGetPaymentByApplicationQuery,
+  useWithdrawApplicationMutation,
 } from "@/state/api";
-import { Check, CreditCard, Download, FileText, X } from "lucide-react";
+import { Check, CreditCard, Download, FileText, LogOut, X } from "lucide-react";
 import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
 import React, { useState } from "react";
 import ViewAgreementModal from "./ViewAgreementModal";
@@ -23,13 +24,16 @@ const PaymentAwareCard = ({
 }: any) => {
   const { data: payment } = useGetPaymentByApplicationQuery(application.id);
   const [showPayment, setShowPayment] = useState(false);
+  const [withdrawApplication] = useWithdrawApplicationMutation();
 
   const hasAgreement = !!agreement;
   const agreementPending = agreement?.status === "Pending";
   const agreementSigned = agreement?.status === "Signed";
+  const agreementRejected = agreement?.status === "Rejected";
   const isPaid = payment?.paymentStatus === "Paid";
   const canPay =
     application.status === "Approved" && agreementSigned && !isPaid;
+  const canWithdraw = application.status === "Pending" && agreementRejected;
 
   return (
     <>
@@ -54,7 +58,6 @@ const PaymentAwareCard = ({
                 <X className="w-4 h-4" /> Application denied
               </span>
             )}
-
             {isPaid && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
                 <Check className="w-3 h-3" /> Payment Received
@@ -77,6 +80,12 @@ const PaymentAwareCard = ({
                 <Check className="w-3 h-3" /> Agreement Signed
               </span>
             )}
+            {agreementRejected && application.status === "Pending" && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                <X className="w-3 h-3" /> Agreement Rejected — Awaiting new
+                agreement
+              </span>
+            )}
           </div>
 
           {/* Buttons */}
@@ -89,7 +98,7 @@ const PaymentAwareCard = ({
                 <CreditCard className="w-4 h-4" /> Pay Now
               </button>
             )}
-            {hasAgreement && (
+            {hasAgreement && !agreementRejected && (
               <button
                 className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border transition-colors ${
                   agreementPending
@@ -100,6 +109,22 @@ const PaymentAwareCard = ({
               >
                 <FileText className="w-4 h-4" />
                 {agreementPending ? "Review Agreement" : "View Agreement"}
+              </button>
+            )}
+            {canWithdraw && (
+              <button
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-xl hover:bg-red-400 transition-colors"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Are you sure you want to withdraw this application?",
+                    )
+                  ) {
+                    withdrawApplication(application.id);
+                  }
+                }}
+              >
+                <LogOut className="w-4 h-4" /> Withdraw Application
               </button>
             )}
             <button

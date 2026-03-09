@@ -9,6 +9,7 @@ import {
   useGetAuthUserQuery,
   useGetAgreementsQuery,
   useUpdateApplicationStatusMutation,
+  useDeleteAgreementMutation,
 } from "@/state/api";
 import { Check, Download, ExternalLink, Send, X } from "lucide-react";
 import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
@@ -37,6 +38,7 @@ const Applications = () => {
   );
 
   const [updateApplicationStatus] = useUpdateApplicationStatusMutation();
+  const [deleteAgreement] = useDeleteAgreementMutation();
 
   if (isLoading) return <Loading />;
   if (isError || !applications) return <div>Error fetching applications</div>;
@@ -154,6 +156,19 @@ const Applications = () => {
                                 }
                               >
                                 <Send className="w-4 h-4" /> Send Agreement
+                              </button>
+                            )}
+
+                          {application.status === "Pending" &&
+                            agreementRejected && (
+                              <button
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-orange-600 text-white rounded-xl hover:bg-orange-500 transition-colors"
+                                onClick={async () => {
+                                  await deleteAgreement(application.id);
+                                  setSendAgreementApplication(application);
+                                }}
+                              >
+                                <Send className="w-4 h-4" /> Resend Agreement
                               </button>
                             )}
 

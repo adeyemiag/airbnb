@@ -451,6 +451,35 @@ export const api = createApi({
       },
     }),
 
+    deleteAgreement: build.mutation<void, number>({
+      query: (applicationId) => ({
+        url: `agreements/application/${applicationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Agreements"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          success: "Agreement removed. You can now send a new one.",
+          error: "Failed to delete agreement.",
+        });
+      },
+    }),
+
+    withdrawApplication: build.mutation<Application, number>({
+      query: (id) => ({
+        url: `applications/${id}/status`,
+        method: "PUT",
+        body: { status: "Denied" },
+      }),
+      invalidatesTags: ["Applications", "Agreements"],
+      async onQueryStarted(_, { queryFulfilled }) {
+        await withToast(queryFulfilled, {
+          success: "Application withdrawn.",
+          error: "Failed to withdraw application.",
+        });
+      },
+    }),
+
     // payment endpoints
     verifyPayment: build.mutation<
       { message: string; payment: PaymentRecord; reference: string },
@@ -530,6 +559,8 @@ export const {
   useGetAgreementByApplicationQuery,
   useCreateAgreementMutation,
   useUpdateAgreementStatusMutation,
+  useDeleteAgreementMutation,
+  useWithdrawApplicationMutation,
   useVerifyPaymentMutation,
   useGetPaymentByApplicationQuery,
   useGetNotificationsQuery,
