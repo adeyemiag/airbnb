@@ -11,263 +11,136 @@ import {
 } from "@/components/ui/table";
 import {
   useGetAuthUserQuery,
-  useGetLeasesQuery,
-  useGetPaymentsQuery,
   useGetPropertyQuery,
+  useGetApplicationsQuery,
+  useGetAgreementsQuery,
+  useGetPaymentsQuery,
+  useGetPropertyLeasesQuery,
 } from "@/state/api";
-import { Lease, Payment, Property } from "@/types/prismaTypes";
 import {
-  ArrowDownToLineIcon,
+  AlertTriangle,
+  ArrowDownToLine,
   Check,
-  CreditCard,
+  Clock,
   Download,
-  Edit,
   FileText,
-  Mail,
   MapPin,
-  User,
+  Phone,
+  Mail,
+  X,
 } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
-import React from "react";
+import { useParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { downloadAgreementAsPDF } from "@/lib/downloadAgreement";
 
-const PaymentMethod = () => {
-  const router = useRouter();
+// Countdown hook
+function useCountdown(targetDate: Date | null) {
+  const [timeLeft, setTimeLeft] = useState<{
+    hours: number;
+    minutes: number;
+    seconds: number;
+    expired: boolean;
+    graceExpired: boolean;
+  } | null>(null);
 
-  const editPaymentMethod = () => {
-    router.push("/billing/edit"); // update this route to your edit page
-  };
+  useEffect(() => {
+    if (!targetDate) return;
+    const graceEnd = new Date(targetDate.getTime() + 12 * 60 * 60 * 1000);
 
-  return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 mt-10 md:mt-0 flex-1">
-      <h2 className="text-2xl font-bold mb-4">Payment method</h2>
-      <p className="mb-4">Change how you pay for your plan.</p>
-      <div className="border rounded-lg p-6">
-        <div>
-          {/* Card Info */}
-          <div className="flex gap-10">
-            <div className="w-36 h-20 bg-blue-600 flex items-center justify-center rounded-md">
-              <span className="text-white text-2xl font-bold">VISA</span>
-            </div>
-            <div className="flex flex-col justify-between">
-              <div>
-                <div className="flex items-start gap-5">
-                  <h3 className="text-lg font-semibold">Visa ending in 2024</h3>
-                  <span className="text-sm font-medium border border-primary-700 text-primary-700 px-3 py-1 rounded-full">
-                    Default
-                  </span>
-                </div>
-                <div className="text-sm text-gray-500 flex items-center">
-                  <CreditCard className="w-4 h-4 mr-1" />
-                  <span>Expiry • 26/06/2024</span>
-                </div>
-              </div>
-              <div className="text-sm text-gray-500 flex items-center">
-                <Mail className="w-4 h-4 mr-1" />
-                <span>billing@baseclub.com</span>
-              </div>
-            </div>
-          </div>
+    const tick = () => {
+      const now = new Date();
+      const diffToEnd = targetDate.getTime() - now.getTime();
+      const diffToGrace = graceEnd.getTime() - now.getTime();
 
-          <hr className="my-4" />
-          <div className="flex justify-end">
-            <button
-              onClick={editPaymentMethod}
-              className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
-            >
-              <Edit className="w-5 h-5 mr-2" />
-              <span>Edit</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+      if (diffToGrace <= 0) {
+        setTimeLeft({
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+          expired: true,
+          graceExpired: true,
+        });
+        return;
+      }
+      if (diffToEnd <= 0) {
+        // In grace period
+        const h = Math.floor(diffToGrace / (1000 * 60 * 60));
+        const m = Math.floor((diffToGrace % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diffToGrace % (1000 * 60)) / 1000);
+        setTimeLeft({
+          hours: h,
+          minutes: m,
+          seconds: s,
+          expired: true,
+          graceExpired: false,
+        });
+      } else {
+        setTimeLeft({
+          hours: 0,
+          minutes: 0,
+          seconds: 0,
+          expired: false,
+          graceExpired: false,
+        });
+      }
+    };
 
-const ResidenceCard = ({
-  property,
-  currentLease,
-}: {
-  property: Property;
-  currentLease: Lease;
-}) => {
-  const router = useRouter();
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
 
-  const goToManager = () => {
-    router.push(`/managers/${currentLease.managerId}`); // update route
-  };
+  return timeLeft;
+}
 
-  const downloadAgreement = () => {
-    if (currentLease.agreementUrl) {
-      window.open(currentLease.agreementUrl, "_blank");
-    } else {
-      alert("Agreement URL not available");
-    }
-  };
+const ExpiryBanner = ({ endDate }: { endDate: Date }) => {
+  const countdown = useCountdown(endDate);
+  if (!countdown || !countdown.expired) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden p-6 flex-1 flex flex-col justify-between">
-      {/* Header */}
-      <div className="flex gap-5">
-        <div className="w-64 h-32 object-cover bg-slate-500 rounded-xl"></div>
-
-        <div className="flex flex-col justify-between">
-          <div>
-            <div className="bg-green-500 w-fit text-white px-4 py-1 rounded-full text-sm font-semibold">
-              Active Leases
-            </div>
-
-            <h2 className="text-2xl font-bold my-2">{property.name}</h2>
-            <div className="flex items-center mb-2">
-              <MapPin className="w-5 h-5 mr-1" />
-              <span>
-                {property.location.city}, {property.location.country}
-              </span>
-            </div>
-          </div>
-          <div className="text-xl font-bold">
-            ${currentLease.rent}{" "}
-            <span className="text-gray-500 text-sm font-normal">/ night</span>
-          </div>
+    <div
+      className={`w-full mb-6 rounded-2xl p-4 flex items-center gap-4 border ${
+        countdown.graceExpired
+          ? "bg-red-50 border-red-300 text-red-800"
+          : "bg-orange-50 border-orange-300 text-orange-800"
+      }`}
+    >
+      {countdown.graceExpired ? (
+        <X className="w-6 h-6 shrink-0 text-red-600" />
+      ) : (
+        <AlertTriangle className="w-6 h-6 shrink-0 text-orange-500" />
+      )}
+      <div className="flex-1">
+        {countdown.graceExpired ? (
+          <>
+            <p className="font-bold text-red-700">
+              Lease Expired — Property Lost
+            </p>
+            <p className="text-sm">
+              Your grace period has ended. Please contact your manager to
+              discuss renewal.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="font-bold">⚠️ Lease Expired — Grace Period Active</p>
+            <p className="text-sm">
+              Your lease has ended. You have a 12-hour grace period to renew or
+              you will lose access to this property.
+            </p>
+          </>
+        )}
+      </div>
+      {!countdown.graceExpired && (
+        <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2 border border-orange-200 shrink-0">
+          <Clock className="w-4 h-4 text-orange-500" />
+          <span className="font-mono font-bold text-lg text-orange-700">
+            {String(countdown.hours).padStart(2, "0")}:
+            {String(countdown.minutes).padStart(2, "0")}:
+            {String(countdown.seconds).padStart(2, "0")}
+          </span>
         </div>
-      </div>
-      {/* Dates */}
-      <div>
-        <hr className="my-4" />
-        <div className="flex justify-between items-center">
-          <div className="xl:flex">
-            <div className="text-gray-500 mr-2">Start Date: </div>
-            <div className="font-semibold">
-              {new Date(currentLease.startDate).toLocaleDateString()}
-            </div>
-          </div>
-          <div className="border-[0.5px] border-primary-300 h-4" />
-          <div className="xl:flex">
-            <div className="text-gray-500 mr-2">End Date: </div>
-            <div className="font-semibold">
-              {new Date(currentLease.endDate).toLocaleDateString()}
-            </div>
-          </div>
-          <div className="border-[0.5px] border-primary-300 h-4" />
-          <div className="xl:flex">
-            <div className="text-gray-500 mr-2">Next Payment: </div>
-            <div className="font-semibold">
-              {new Date(currentLease.endDate).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
-        <hr className="my-4" />
-      </div>
-      {/* Buttons */}
-      <div className="flex justify-end gap-2 w-full">
-        <button
-          onClick={goToManager}
-          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
-        >
-          <User className="w-5 h-5 mr-2" />
-          Manager
-        </button>
-        <button
-          onClick={downloadAgreement}
-          className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
-        >
-          <Download className="w-5 h-5 mr-2" />
-          Download Agreement
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const BillingHistory = ({ payments }: { payments: Payment[] }) => {
-  const downloadInvoice = (invoiceUrl?: string) => {
-    if (invoiceUrl) window.open(invoiceUrl, "_blank");
-    else alert("Invoice URL not available");
-  };
-
-  const downloadAllInvoices = () => {
-    payments.forEach((payment) => {
-      if (payment.invoiceUrl) window.open(payment.invoiceUrl, "_blank");
-    });
-  };
-
-  return (
-    <div className="mt-8 bg-white rounded-xl shadow-md overflow-hidden p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold mb-1">Billing History</h2>
-          <p className="text-sm text-gray-500">
-            Download your previous plan receipts and usage details.
-          </p>
-        </div>
-        <div>
-          <button
-            onClick={downloadAllInvoices}
-            className="bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center hover:bg-primary-700 hover:text-primary-50"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            <span>Download All</span>
-          </button>
-        </div>
-      </div>
-      <hr className="mt-4 mb-1" />
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Billing Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((payment) => (
-              <TableRow key={payment.id} className="h-16">
-                <TableCell className="font-medium">
-                  <div className="flex items-center">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Invoice #{payment.id} -{" "}
-                    {new Date(payment.paymentDate).toLocaleString("default", {
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold border ${
-                      payment.paymentStatus === "Paid"
-                        ? "bg-green-100 text-green-800 border-green-300"
-                        : "bg-yellow-100 text-yellow-800 border-yellow-300"
-                    }`}
-                  >
-                    {payment.paymentStatus === "Paid" ? (
-                      <Check className="w-4 h-4 inline-block mr-1" />
-                    ) : null}
-                    {payment.paymentStatus}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {new Date(payment.paymentDate).toLocaleDateString()}
-                </TableCell>
-                <TableCell>${payment.amountPaid.toFixed(2)}</TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => downloadInvoice(payment.invoiceUrl)}
-                    className="border border-gray-300 text-gray-700 py-2 px-4 rounded-md flex items-center justify-center font-semibold hover:bg-primary-700 hover:text-primary-50"
-                  >
-                    <ArrowDownToLineIcon className="w-4 h-4 mr-1" />
-                    Download
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      )}
     </div>
   );
 };
@@ -275,38 +148,239 @@ const BillingHistory = ({ payments }: { payments: Payment[] }) => {
 const Residence = () => {
   const { id } = useParams();
   const { data: authUser } = useGetAuthUserQuery();
-  const {
-    data: property,
-    isLoading: propertyLoading,
-    error: propertyError,
-  } = useGetPropertyQuery(Number(id));
 
-  const { data: leases, isLoading: leasesLoading } = useGetLeasesQuery(
-    parseInt(authUser?.cognitoInfo?.userId || "0"),
+  const { data: property, isLoading: propLoading } = useGetPropertyQuery(
+    Number(id),
+  );
+  const { data: leases, isLoading: leasesLoading } = useGetPropertyLeasesQuery(
+    Number(id),
+    {
+      skip: !id,
+    },
+  );
+  const { data: applications } = useGetApplicationsQuery(
+    { userId: authUser?.cognitoInfo?.userId, userType: "tenant" },
     { skip: !authUser?.cognitoInfo?.userId },
   );
-  const { data: payments, isLoading: paymentsLoading } = useGetPaymentsQuery(
-    leases?.[0]?.id || 0,
-    { skip: !leases?.[0]?.id },
+  const { data: agreements } = useGetAgreementsQuery(
+    { userId: authUser?.cognitoInfo?.userId, userType: "tenant" },
+    { skip: !authUser?.cognitoInfo?.userId },
   );
-
-  if (propertyLoading || leasesLoading || paymentsLoading) return <Loading />;
-  if (!property || propertyError) return <div>Error loading property</div>;
 
   const currentLease = leases?.find(
-    (lease) => lease.propertyId === property.id,
+    (l) => l.tenantCognitoId === authUser?.cognitoInfo?.userId,
   );
 
+  const { data: payments, isLoading: paymentsLoading } = useGetPaymentsQuery(
+    currentLease?.id || 0,
+    { skip: !currentLease?.id },
+  );
+
+  const application = applications?.find((a) => a.propertyId === Number(id));
+  const agreement = agreements?.find(
+    (a) => a.applicationId === application?.id,
+  );
+
+  if (propLoading || leasesLoading) return <Loading />;
+  if (!property)
+    return <div className="p-8 text-gray-500">Property not found.</div>;
+
+  const endDate = currentLease ? new Date(currentLease.endDate) : null;
+  const manager = (property as any).manager;
+  const photoUrl = property.photoUrls?.[0];
+
   return (
-    <div className="dashboard-container p-6 flex justify-end">
-      <div className="w-full max-w-6xl">
-        <div className="md:flex gap-10 justify-center">
+    <div className="min-h-screen bg-gray-50/50 px-6 py-10">
+      <div className="max-w-5xl mx-auto">
+        {/* Expiry Banner */}
+        {endDate && <ExpiryBanner endDate={endDate} />}
+
+        {/* Property Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex gap-6">
+            {/* Photo */}
+            <div className="w-48 h-36 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={photoUrl}
+                  alt={property.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                  No photo
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 flex flex-col justify-between">
+              <div>
+                <span className="inline-block bg-emerald-500 text-white text-xs font-semibold px-3 py-1 rounded-full mb-2">
+                  Active Lease
+                </span>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {property.name}
+                </h2>
+                <div className="flex items-center text-gray-500 text-sm mt-1">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {property.location?.city}, {property.location?.country}
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                ₦
+                {currentLease?.rent?.toLocaleString() ??
+                  property.pricePerMonth.toLocaleString()}
+                <span className="text-sm font-normal text-gray-500"> / mo</span>
+              </div>
+            </div>
+          </div>
+
+          <hr className="my-5 border-gray-100" />
+
+          {/* Lease dates */}
           {currentLease && (
-            <ResidenceCard property={property} currentLease={currentLease} />
+            <div className="flex flex-wrap gap-6 text-sm mb-5">
+              <div>
+                <p className="text-gray-400 mb-0.5">Start Date</p>
+                <p className="font-semibold">
+                  {new Date(currentLease.startDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="w-px bg-gray-200" />
+              <div>
+                <p className="text-gray-400 mb-0.5">End Date</p>
+                <p
+                  className={`font-semibold ${endDate && endDate < new Date() ? "text-red-600" : ""}`}
+                >
+                  {new Date(currentLease.endDate).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="w-px bg-gray-200" />
+              <div>
+                <p className="text-gray-400 mb-0.5">Monthly Rent</p>
+                <p className="font-semibold">
+                  ₦{currentLease.rent.toLocaleString()}
+                </p>
+              </div>
+            </div>
           )}
-          <PaymentMethod />
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 flex-wrap">
+            {manager && (
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm">
+                <div className="w-8 h-8 rounded-full bg-primary-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                  {manager.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{manager.name}</p>
+                  <div className="flex gap-3 text-gray-500 text-xs mt-0.5">
+                    {manager.phoneNumber && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {manager.phoneNumber}
+                      </span>
+                    )}
+                    {manager.email && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {manager.email}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {agreement && (
+              <button
+                onClick={() => downloadAgreementAsPDF(agreement)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4" /> Download Agreement
+              </button>
+            )}
+          </div>
         </div>
-        <BillingHistory payments={payments || []} />
+
+        {/* Billing History */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Billing History
+              </h2>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Your previous payment receipts
+              </p>
+            </div>
+          </div>
+
+          {paymentsLoading ? (
+            <p className="text-gray-400 text-sm py-6 text-center">
+              Loading payments...
+            </p>
+          ) : !payments || payments.length === 0 ? (
+            <div className="text-center py-10 text-gray-400">
+              <FileText className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No billing history yet</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map((payment) => (
+                  <TableRow key={payment.id} className="h-14">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-gray-400" />
+                        Invoice #{payment.id} —{" "}
+                        {new Date(payment.paymentDate).toLocaleString(
+                          "default",
+                          { month: "short", year: "numeric" },
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          payment.paymentStatus === "Paid"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {payment.paymentStatus === "Paid" && (
+                          <Check className="w-3 h-3" />
+                        )}
+                        {payment.paymentStatus}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-gray-500">
+                      {new Date(payment.paymentDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      ₦{payment.amountPaid.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <button className="inline-flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                        <ArrowDownToLine className="w-3.5 h-3.5" /> Download
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
       </div>
     </div>
   );
